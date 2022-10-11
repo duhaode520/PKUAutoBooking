@@ -33,9 +33,9 @@ def login(driver, user_name, password, retry=0):
     WebDriverWait(driver, 10).until(
         EC.presence_of_element_located((By.ID, "user_name")))
     driver.find_element(By.ID, "user_name").send_keys(user_name)
-    time.sleep(1)
+    time.sleep(0.5)
     driver.find_element(By.ID, "password").send_keys(password)
-    time.sleep(1)
+    time.sleep(0.5)
     driver.find_element(By.ID, "logon_button").click()
 
     try:
