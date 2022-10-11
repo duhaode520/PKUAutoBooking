@@ -2,6 +2,7 @@ from configparser import ConfigParser
 from os import stat
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as Chrome_Options
+from selenium.webdriver.edge.options import Options as Edge_Options
 from selenium.webdriver.firefox.options import Options as Firefox_Options
 import warnings
 import sys
@@ -29,6 +30,15 @@ def sys_path(browser):
             return os.path.join(path, 'geckodriver.bin')
         else:
             raise Exception('不支持该系统')
+    elif browser == "edge":
+        if sys.platform.startswith('win'):
+            return os.path.join(path, 'msedgedriver.exe')
+        elif sys.platform.startswith('linux'):
+            return os.path.join(path, 'msedgedriver.bin')
+        else:
+            raise Exception('不支持该系统')
+    else:
+        raise Exception('不支持该浏览器')
 
 
 def load_config(config):
@@ -37,6 +47,8 @@ def load_config(config):
 
     user_name = conf['login']['user_name']
     password = conf['login']['password']
+    tt_usr = conf['tt']['tt_usr']
+    tt_pwd = conf['tt']['tt_pwd']
     venue = conf['type']['venue']
     venue_num = int(conf['type']['venue_num'])
     start_time = conf['time']['start_time']
@@ -44,7 +56,7 @@ def load_config(config):
     wechat_notice = conf.getboolean('wechat', 'wechat_notice')
     sckey = conf['wechat']['SCKEY']
 
-    return (user_name, password, venue, venue_num, start_time, end_time, wechat_notice, sckey)
+    return (user_name, password, tt_usr, tt_pwd, venue, venue_num, start_time, end_time, wechat_notice, sckey)
 
 
 def log_status(config, start_time, log_str):
@@ -60,7 +72,7 @@ def log_status(config, start_time, log_str):
 
 
 def page(config, browser="chrome"):
-    user_name, password, venue, venue_num, start_time, end_time, wechat_notice, sckey = load_config(
+    user_name, password, tt_usr, tt_pwd, venue, venue_num, start_time, end_time, wechat_notice, sckey = load_config(
         config)
 
     log_str = ""
@@ -70,15 +82,15 @@ def page(config, browser="chrome"):
     log_str += log_exceeds
     if len(start_time_list_new) == 0:
         log_status(config, [start_time.split('/'),
-                   end_time.split('/')], log_exceeds)
+                            end_time.split('/')], log_exceeds)
         return False
     if browser == "chrome":
         chrome_options = Chrome_Options()
         chrome_options.add_argument("--headless")
         driver = webdriver.Chrome(
             options=chrome_options,
-            executable_path=sys_path(browser="chrome"),
-            service_args=['--ignore-ssl-errors=true', '--ssl-protocol=TLSv1'])
+            executable_path=sys_path(browser="chrome"))
+            # service_args=['--ignore-ssl-errors=true', '--ssl-protocol=TLSv1'])
         print('chrome launched\n')
     elif browser == "firefox":
         firefox_options = Firefox_Options()
@@ -87,6 +99,11 @@ def page(config, browser="chrome"):
             options=firefox_options,
             executable_path=sys_path(browser="firefox"))
         print('firefox launched\n')
+    elif browser == 'edge':
+        edge_options = Edge_Options()
+        edge_options.add_argument("--headless")
+        driver = webdriver.Edge(
+            executable_path=sys_path(browser="edge"))
     else:
         raise Exception("不支持此类浏览器")
 
@@ -128,7 +145,7 @@ def page(config, browser="chrome"):
             status = False
     if status:
         try:
-            log_str += click_submit_order(driver)
+            log_str += click_submit_order(driver, tt_usr, tt_pwd)
         except:
             log_str += "提交订单失败\n"
             print("提交订单失败\n")
@@ -171,7 +188,7 @@ def multi_run(lst_conf, browser="chrome"):
 
 
 if __name__ == '__main__':
-    browser = "firefox"
+    browser = "chrome"
 
     # lst_conf = env_check()
     # print(lst_conf)

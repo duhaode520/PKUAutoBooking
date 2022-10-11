@@ -1,4 +1,5 @@
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from urllib.parse import quote
@@ -6,6 +7,9 @@ import time
 import datetime
 import warnings
 import random
+
+from sqlalchemy import true
+from utils import verify, get_size
 warnings.filterwarnings('ignore')
 
 
@@ -14,32 +18,33 @@ def login(driver, user_name, password, retry=0):
         return '门户登录失败\n'
 
     print('门户登录中...')
+    # 先登录
+    portalURL = "https://portal.pku.edu.cn/portal2017"
+    driver.get(portalURL)
+    time.sleep(1)
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_all_elements_located((By.TAG_NAME, "div")))
+    driver.find_element(
+        By.CSS_SELECTOR,
+        "#ng-app > div.ng-scope > header > section > section.subNav.yahei.clearfix > section.mainWrap.mainWrap02.noline.mainWrap02-w > ul.subNavLeft > li > a"
+    ).click()
 
-    appID = 'portal2017'
-    iaaaUrl = 'https://iaaa.pku.edu.cn/iaaa/oauth.jsp'
-    appName = quote('北京大学校内信息门户新版')
-    redirectUrl = 'https://portal.pku.edu.cn/portal2017/ssoLogin.do'
+    # 跳转到登陆界面
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.ID, "user_name")))
+    driver.find_element(By.ID, "user_name").send_keys(user_name)
+    time.sleep(1)
+    driver.find_element(By.ID, "password").send_keys(password)
+    time.sleep(1)
+    driver.find_element(By.ID, "logon_button").click()
 
-    driver.get('https://portal.pku.edu.cn/portal2017/')
-    driver.get(
-        f'{iaaaUrl}?appID={appID}&appName={appName}&redirectUrl={redirectUrl}')
-    WebDriverWait(driver, 10).until_not(
-        EC.visibility_of_element_located((By.CLASS_NAME, "loading.ivu-spin.ivu-spin-large.ivu-spin-fix")))
-    WebDriverWait(driver, 5).until(
-        EC.visibility_of_element_located((By.ID, 'logon_button')))
-    time.sleep(0.2)
-    driver.find_element_by_id('user_name').send_keys(user_name)
-    WebDriverWait(driver, 10).until_not(
-        EC.visibility_of_element_located((By.CLASS_NAME, "loading.ivu-spin.ivu-spin-large.ivu-spin-fix")))
-    time.sleep(0.2)
-    driver.find_element_by_id('password').send_keys(password)
-    WebDriverWait(driver, 10).until_not(
-        EC.visibility_of_element_located((By.CLASS_NAME, "loading.ivu-spin.ivu-spin-large.ivu-spin-fix")))
-    time.sleep(0.2)
-    driver.find_element_by_id('logon_button').click()
     try:
         WebDriverWait(driver,
-                      5).until(EC.visibility_of_element_located((By.ID, 'all')))
+                      10).until(EC.visibility_of_element_located((By.ID, 'all')))
+        # 这里随便点一下消除弹窗
+        driver.find_element(
+            By.XPATH, "/html/body/div[1]/div[1]/div[1]/div[1]").click()
+        time.sleep(0.2)
         print('门户登录成功')
         return '门户登录成功\n'
     except:
@@ -324,8 +329,14 @@ def click_book(driver):
     log_str += "确定预约成功\n"
     return log_str
 
+def check_element_exist(driver, condition, element):
+    try:
+        driver.find_element(condition, element)
+        return True
+    except:
+        return False
 
-def click_submit_order(driver):
+def click_submit_order(driver, tt_usr, tt_pwd):
     print("提交订单")
     log_str = "提交订单\n"
     driver.switch_to.window(driver.window_handles[-1])
@@ -336,6 +347,34 @@ def click_submit_order(driver):
     driver.find_element_by_xpath(
         '/html/body/div[1]/div/div/div[3]/div[2]/div/div[2]/div/div/div[2]').click()
     #result = EC.alert_is_present()(driver)
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located(
+            (By.XPATH, '/html/body/div[1]/div/div/div[3]/div[2]/div/div[2]/div[2]/div/div[2]/div/div[1]/div/img'))
+    )
+
+    captcha_time = 0
+    while True:
+        if captcha_time > 2:
+            log_str += "验证失败\n"
+            raise Exception("验证失败")
+        base_img = driver.find_element(
+            By.XPATH, '/html/body/div[1]/div/div/div[3]/div[2]/div/div[2]/div[2]/div/div[2]/div/div[1]/div/img')
+        slide_img = driver.find_element(
+            By.XPATH, '/html/body/div[1]/div/div/div[3]/div[2]/div/div[2]/div[2]/div/div[2]/div/div[2]/div/div/div/img')
+        base, slide = base_img.get_attribute('src').replace(
+            'data:image/png;base64,', ''), slide_img.get_attribute('src').replace('data:image/png;base64,', '')
+        scale = base_img.size['width'] / get_size(base)[0]
+        x, y = verify(base, slide, tt_usr, tt_pwd)
+        dragger = driver.find_element(By.CSS_SELECTOR, 'body > div.fullHeight > div > div > div.coach > div.venueSiteWrap > div > div.reservation-step-two > div.mask > div > div.verifybox-bottom > div > div.verify-bar-area > div > div')
+        action = ActionChains(driver)
+        action.drag_and_drop_by_offset(dragger, xoffset=x*scale, yoffset=0).perform()
+        WebDriverWait(driver, 5).until_not(
+            EC.visibility_of_element_located((By.CLASS_NAME, "loading.ivu-spin.ivu-spin-large.ivu-spin-fix")))
+        if check_element_exist(driver, By.CLASS_NAME, 'payHandle'):
+            break;
+        else:
+            captcha_time += 1
+
     print("提交订单成功")
     log_str += "提交订单成功\n"
     return log_str
@@ -348,10 +387,12 @@ def click_pay(driver):
     WebDriverWait(driver, 10).until_not(
         EC.visibility_of_element_located((By.CLASS_NAME, "loading.ivu-spin.ivu-spin-large.ivu-spin-fix")))
     WebDriverWait(driver, 10).until(
-        EC.visibility_of_element_located((By.XPATH, '/html/body/div[1]/div/div/div[3]/div[2]/div/div[3]/div[7]/div[2]')))
+        EC.visibility_of_element_located((By.XPATH, '/html/body/div[1]/div/div/div[3]/div[2]/div/div[3]/div[6]/div[1]/div[4]')))
     time.sleep(2)
+    driver.find_element(By.XPATH, '/html/body/div[1]/div/div/div[3]/div[2]/div/div[3]/div[6]/div[1]/div[4]').click()
+    time.sleep(0.5)
     driver.find_element_by_xpath(
-        '/html/body/div[1]/div/div/div[3]/div[2]/div/div[3]/div[7]/div[2]').click()
+        '/html/body/div[1]/div/div/div[3]/div[2]/div/div[3]/div[8]/div[2]/button').click()
     print("付款成功")
     log_str += "付款成功\n"
     return log_str
