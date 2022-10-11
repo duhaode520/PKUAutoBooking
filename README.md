@@ -1,3 +1,9 @@
+# AutoBadmin
+PKU智慧场馆自动预约的改良版 fork from: https://github.com/lyqqqqqqqqq/PKUAutoBookingVenues
+
+本次修改主要使用了[tt识图](http://www.ttshitu.com/)处理了智慧场馆更新后在提交订单时要求使用滑动验证码的问题
+
+同时还改变了一下访问iaaa的逻辑增强鲁棒性，避免可能的验证码弹窗
 # PKUAutoBookingVenues
 PKU智慧场馆自动预约工具
 
@@ -7,6 +13,7 @@ PKU智慧场馆自动预约工具
 ## 说明
 
 - 本工具采用 Python3 搭配 `selenium` 完成自动化操作，实现全自动预约场馆
+- 使用[tt识图](http://www.ttshitu.com/)完成滑块验证码的校验
 - 支持基于[Server酱](https://sct.ftqq.com/)的备案结果微信推送功能，体验更佳
 - 采用定时任务可实现定期（如每周）免打扰预约，请设置在三天前的11:55-12:00之间
 - 第三方依赖包几乎只有 `selenium` 一个
@@ -45,8 +52,9 @@ pip3 install selenium==2.48.0
 
 2. 用文本编辑器（建议代码编辑器）打开 `config0.ini` 文件
 
-3. 配置 `[login]` 、`[type]` 、`[time]`、`[wechat_notice]` 这几个 Section 下的变量，在 `config0.ini.sample` 文件内有详细注释
+3. 配置 `[login]` 、`[tt]`、`[type]` 、`[time]`、`[wechat_notice]` 这几个 Section 下的变量，在 `config0.ini.sample` 文件内有详细注释
 
+4. [tt识图](http://www.ttshitu.com/)需要提前注册，每一次识别需要1分钱，大概充1块就可以使用很久了。
 
 ## 定时运行
 
