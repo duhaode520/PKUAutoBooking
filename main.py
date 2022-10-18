@@ -83,6 +83,7 @@ def page(config, browser="chrome"):
     if len(start_time_list_new) == 0:
         log_status(config, [start_time.split('/'),
                             end_time.split('/')], log_exceeds)
+        time.sleep(60)
         return False
     if browser == "chrome":
         chrome_options = Chrome_Options()
@@ -120,10 +121,18 @@ def page(config, browser="chrome"):
         except:
             log_str += "进入预约 %s 界面失败\n" % venue
             status = False
-    if status:
-        status, log_book, start_time, end_time, venue_num = book(driver, start_time_list_new,
+    while status:
+        tmp_status, log_book, tmp_start_time, tmp_end_time, tmp_venue_num = book(driver, start_time_list_new,
                                                                  end_time_list_new, delta_day_list, venue_num)
         log_str += log_book
+        if tmp_status:
+            start_time = tmp_start_time
+            end_time = tmp_end_time
+            venue_num = tmp_venue_num
+            break
+        else:
+            time.sleep(3)
+            
     else:
         log_str += "点击预约表格失败\n"
         print("点击预约表格失败\n")
@@ -182,19 +191,21 @@ def multi_run(lst_conf, browser="chrome"):
         parameter_list.append((lst_conf[i], browser))
     print("并行预约")
     pool = mp.Pool()
-    pool.starmap_async(page, parameter_list)
+    pool.starmap_async(task, parameter_list)
     pool.close()
     pool.join()
 
+def task(config, browser):
+    status = False
+    while not status:
+        status = page(config, browser)
+      
 
 if __name__ == '__main__':
     browser = "chrome"
 
-    # lst_conf = env_check()
+    lst_conf = env_check()
     # print(lst_conf)
     # multi_run(lst_conf, browser)
-    # sequence_run(lst_conf, browser)
-    for i in range(3):
-        status = page('config0.ini', browser)
-        if status:
-            break
+    # # sequence_run(lst_conf, browser)
+    task('config0.ini', browser)

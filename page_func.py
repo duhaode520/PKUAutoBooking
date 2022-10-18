@@ -185,7 +185,7 @@ def book(driver, start_time_list, end_time_list, delta_day_list, venue_num=-1):
     def move_to_date(delta_day):
         for i in range(delta_day):
             WebDriverWait(driver, 10).until_not(
-                EC.visibility_of_element_located((By.CLASS_NAME, "loading.ivu-spin.ivu-spin-large.ivu-spin-fix")))
+                EC.visibility_of_element_located((By.CLASS_NAME, "/html/body/div[1]/div/div/div[3]/div[2]/div/div[2]/form/div/div/button[2]/i")))
             driver.find_element_by_xpath(
                 '/html/body/div[1]/div/div/div[3]/div[2]/div/div[2]/form/div/div/button[2]/i').click()
             time.sleep(0.2)
