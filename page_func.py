@@ -73,7 +73,7 @@ def go_to_venue(driver, venue, retry=0):
         WebDriverWait(driver, 10).until(
             EC.visibility_of_element_located((By.ID, 'venues')))
         time.sleep(0.5)
-        driver.find_element_by_id('venues').click()
+        driver.find_element(By.ID, 'venues').click()
         while len(driver.window_handles) < 2:
             time.sleep(0.5)
         driver.switch_to.window(driver.window_handles[-1])
@@ -81,15 +81,14 @@ def go_to_venue(driver, venue, retry=0):
             EC.visibility_of_element_located((By.CLASS_NAME, "loading.ivu-spin.ivu-spin-large.ivu-spin-fix")))
         WebDriverWait(driver, 10).until(
             EC.visibility_of_element_located((By.XPATH, "/html/body/div[1]/div/div/div[3]/div/div[3]/div[1]/div[2]")))
-        driver.find_element_by_xpath(
+        driver.find_element(By.XPATH,
             "/html/body/div[1]/div/div/div[3]/div/div[3]/div[1]/div[2]").click()
         WebDriverWait(driver, 10).until_not(
             EC.visibility_of_element_located((By.CLASS_NAME, "loading.ivu-spin.ivu-spin-large.ivu-spin-fix")))
         WebDriverWait(driver, 10).until(
             EC.visibility_of_element_located((By.XPATH, '//div [contains(text(),\'%s\')]' % venue)))
         time.sleep(0.5)
-        driver.find_element_by_xpath(
-            '//div [contains(text(),\'%s\')]' % venue).click()
+        driver.find_element(By.XPATH, '//div [contains(text(),\'%s\')]' % venue).click()
         status = True
         log_str += "进入预约 %s 界面成功\n" % venue
     except:
@@ -107,7 +106,7 @@ def click_agree(driver):
     WebDriverWait(driver, 10).until(
         EC.visibility_of_element_located((By.CLASS_NAME, 'ivu-checkbox-wrapper')))
     time.sleep(0.1)
-    driver.find_element_by_class_name('ivu-checkbox-wrapper').click()
+    driver.find_element(By.CLASS_NAME, 'ivu-checkbox-wrapper').click()
     print("点击同意成功\n")
     log_str += "点击同意成功\n"
     return log_str
@@ -188,32 +187,31 @@ def book(driver, start_time_list, end_time_list, delta_day_list, venue_num=-1):
 
     def move_to_date(delta_day):
         for i in range(delta_day):
-            WebDriverWait(driver, 10).until_not(
-                EC.visibility_of_element_located((By.CLASS_NAME, "/html/body/div[1]/div/div/div[3]/div[2]/div/div[2]/form/div/div/button[2]/i")))
-            driver.find_element_by_xpath(
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, "/html/body/div[1]/div/div/div[3]/div[2]/div/div[2]/form/div/div/button[2]/i")))
+            driver.find_element(By.XPATH,
                 '/html/body/div[1]/div/div/div[3]/div[2]/div/div[2]/form/div/div/button[2]/i').click()
-            time.sleep(0.2)
+            time.sleep(0.1)
 
     def click_free(start_time, end_time, venue_num, table_num):
-        trs = driver.find_elements_by_tag_name('tr')
+        trs = driver.find_elements(By.TAG_NAME, 'tr')
         # 防止表格没加载出来
         no_table_flag = 0
-        while trs[1].find_elements_by_tag_name(
-                'td')[0].find_element_by_tag_name('div').text == "时间段":
+        while trs[1].find_elements(By.TAG_NAME,
+                'td')[0].find_element(By.TAG_NAME, 'div').text == "时间段":
             no_table_flag += 1
             time.sleep(0.2)
-            trs = driver.find_elements_by_tag_name('tr')
+            trs = driver.find_elements(By.TAG_NAME, 'tr')
             if no_table_flag > 10:
                 driver.refresh()
                 no_table_flag = 0
                 move_to_date(delta_day)
         trs_list = []
         for i in range(1, len(trs)-2):
-            vt = trs[i].find_elements_by_tag_name(
-                'td')[0].find_element_by_tag_name('div').text
+            vt = trs[i].find_elements(By.TAG_NAME, 
+                'td')[0].find_element(By.TAG_NAME, 'div').text
             if judge_in_time_range(start_time, end_time, vt):
-                trs_list.append(trs[i].find_elements_by_tag_name(
-                    'td'))
+                trs_list.append(trs[i].find_elements(By.TAG_NAME, 'td'))
         if len(trs_list) == 0:
             return False, -1, 0
 
@@ -222,8 +220,7 @@ def book(driver, start_time_list, end_time_list, delta_day_list, venue_num=-1):
         if venue_num != -1 and (venue_num-table_num in j_list):
             flag = False
             for i in range(len(trs_list)):
-                class_name = trs_list[i][venue_num-table_num].find_element_by_tag_name(
-                    'div').get_attribute("class")
+                class_name = trs_list[i][venue_num-table_num].find_element(By.TAG_NAME, 'div').get_attribute('class')
                 print(class_name)
                 if class_name.split()[2] == 'free':
                     flag = True
@@ -237,8 +234,7 @@ def book(driver, start_time_list, end_time_list, delta_day_list, venue_num=-1):
             for j in j_list:
                 flag = False
                 for i in range(len(trs_list)):
-                    class_name = trs_list[i][j].find_element_by_tag_name(
-                        'div').get_attribute("class")
+                    class_name = trs_list[i][j].find_element(By.TAG_NAME, 'div').get_attribute('class')
                     print(class_name)
                     if class_name.split()[2] == 'free':
                         flag = True
@@ -249,8 +245,7 @@ def book(driver, start_time_list, end_time_list, delta_day_list, venue_num=-1):
                 WebDriverWait(driver, 10).until_not(
                     EC.visibility_of_element_located((By.CLASS_NAME,
                                                       "loading.ivu-spin.ivu-spin-large.ivu-spin-fix.fade-leave-active.fade-leave-to")))
-                trs_list[i][venue_num-table_num].find_element_by_tag_name(
-                    'div').click()
+                trs_list[i][venue_num-table_num].find_element(By.TAG_NAME, 'div').click()
             return True, venue_num, table_num + len(j_list)
         return False, venue_num, table_num + len(j_list)
 
@@ -294,13 +289,13 @@ def book(driver, start_time_list, end_time_list, delta_day_list, venue_num=-1):
             start_time, end_time, venue_num, 0)
         # 如果第一页没有，就往后翻，直到不存在下一页
         while not status:
-            next_table = driver.find_elements_by_xpath(
+            next_table = driver.find_elements(By.XPATH, 
                 '/html/body/div[1]/div/div/div[3]/div[2]/div/div[2]/div[3]/div[1]/div/div/div/div/div/table/thead/tr/td[6]/div/span/i')
             WebDriverWait(driver, 10).until_not(
                 EC.visibility_of_element_located((By.CLASS_NAME, "loading.ivu-spin.ivu-spin-large.ivu-spin-fix")))
             time.sleep(0.1)
             if len(next_table) > 0:
-                driver.find_element_by_xpath(
+                driver.find_element(By.XPATH, 
                     '/html/body/div[1]/div/div/div[3]/div[2]/div/div[2]/div[3]/div[1]/div/div/div/div/div/table/thead/tr/td[6]/div/span/i').click()
                 status, venue_num, table_num = click_free(
                     start_time, end_time, venue_num, table_num)
@@ -327,7 +322,7 @@ def click_book(driver):
         EC.visibility_of_element_located((By.CLASS_NAME, "loading.ivu-spin.ivu-spin-large.ivu-spin-fix")))
     WebDriverWait(driver, 10).until(
         EC.visibility_of_element_located((By.XPATH, '/html/body/div[1]/div/div/div[3]/div[2]/div/div[2]/div[5]/div/div[2]')))
-    driver.find_element_by_xpath(
+    driver.find_element(By.XPATH, 
         '/html/body/div[1]/div/div/div[3]/div[2]/div/div[2]/div[5]/div/div[2]').click()
     print("确定预约成功")
     log_str += "确定预约成功\n"
@@ -348,7 +343,7 @@ def click_submit_order(driver, tt_usr, tt_pwd):
         EC.visibility_of_element_located((By.CLASS_NAME, "loading.ivu-spin.ivu-spin-large.ivu-spin-fix")))
     WebDriverWait(driver, 10).until(
         EC.visibility_of_element_located((By.CLASS_NAME, 'payHandleItem')))
-    driver.find_element_by_xpath(
+    driver.find_element(By.XPATH, 
         '/html/body/div[1]/div/div/div[3]/div[2]/div/div[2]/div/div/div[2]').click()
     #result = EC.alert_is_present()(driver)
     WebDriverWait(driver, 10).until(
@@ -395,7 +390,7 @@ def click_pay(driver):
     time.sleep(2)
     driver.find_element(By.XPATH, '/html/body/div[1]/div/div/div[3]/div[2]/div/div[3]/div[6]/div[1]/div[4]').click()
     time.sleep(0.5)
-    driver.find_element_by_xpath(
+    driver.find_element(By.XPATH, 
         '/html/body/div[1]/div/div/div[3]/div[2]/div/div[3]/div[8]/div[2]/button').click()
     print("付款成功")
     log_str += "付款成功\n"
