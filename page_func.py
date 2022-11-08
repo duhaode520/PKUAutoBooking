@@ -40,14 +40,15 @@ def login(driver, user_name, password, retry=0):
 
     try:
         WebDriverWait(driver,
-                      10).until(EC.visibility_of_element_located((By.XPATH, '/html/body/div[1]/div[5]/div/div/div[1]/div/div/table')))
+                      10).until(EC.visibility_of_element_located((By.XPATH, '/html/body/div[1]/header/section/section[2]/section[1]'))) 
+        
+        # 检测有没有弹窗
+        if check_element_exist(driver, By.XPATH, '/html/body/div[1]/div[5]/div/div/div[1]/div/div/table'):
         # 这里随便点一下消除弹窗
-        # driver.find_element(
-        #     By.XPATH, "/html/body/div[1]/header/section/section[2]/section[1]").click()
-        ActionChains(driver)\
-            .move_to_element(driver.find_element(By.XPATH, "/html/body/div[1]/header/section/section[2]/section[1]"))\
-            .click()\
-            .perform()
+            ActionChains(driver)\
+                .move_to_element(driver.find_element(By.XPATH, "/html/body/div[1]/header/section/section[2]/section[1]"))\
+                .click()\
+                .perform()
         time.sleep(0.2)
         print('门户登录成功')
         return '门户登录成功\n'
@@ -329,9 +330,19 @@ def click_book(driver):
     return log_str
 
 def check_element_exist(driver, condition, element):
+    """_summary_: 检查元素是否存在且可见
+
+    Args:
+        driver (_type_): _description_
+        condition (_type_): _description_
+        element (_type_): _description_
+
+    Returns:
+        bool: is_exist
+    """
     try:
-        driver.find_element(condition, element)
-        return True
+        ele = driver.find_element(condition, element)
+        return ele.is_displayed()
     except:
         return False
 
