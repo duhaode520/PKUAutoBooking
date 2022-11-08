@@ -83,11 +83,11 @@ def page(config, browser="chrome"):
     if len(start_time_list_new) == 0:
         log_status(config, [start_time.split('/'),
                             end_time.split('/')], log_exceeds)
-        time.sleep(60)
+        time.sleep(30)
         return False
     if browser == "chrome":
         chrome_options = Chrome_Options()
-        chrome_options.add_argument("--headless")
+        # chrome_options.add_argument("--headless")
         driver = webdriver.Chrome(
             options=chrome_options,
             executable_path=sys_path(browser="chrome"))

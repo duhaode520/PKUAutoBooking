@@ -40,10 +40,14 @@ def login(driver, user_name, password, retry=0):
 
     try:
         WebDriverWait(driver,
-                      10).until(EC.visibility_of_element_located((By.ID, 'all')))
+                      10).until(EC.visibility_of_element_located((By.XPATH, '/html/body/div[1]/div[5]/div/div/div[1]/div/div/table')))
         # 这里随便点一下消除弹窗
-        driver.find_element(
-            By.XPATH, "/html/body/div[1]/div[1]/div[1]/div[1]").click()
+        # driver.find_element(
+        #     By.XPATH, "/html/body/div[1]/header/section/section[2]/section[1]").click()
+        ActionChains(driver)\
+            .move_to_element(driver.find_element(By.XPATH, "/html/body/div[1]/header/section/section[2]/section[1]"))\
+            .click()\
+            .perform()
         time.sleep(0.2)
         print('门户登录成功')
         return '门户登录成功\n'
@@ -62,7 +66,7 @@ def go_to_venue(driver, venue, retry=0):
     log_str = "进入预约 %s 界面\n" % venue
 
     try:
-        butt_all = driver.find_element_by_id('all')
+        butt_all = driver.find_element(By.ID,'all')
         driver.execute_script('arguments[0].click();', butt_all)
         WebDriverWait(driver, 10).until_not(
             EC.visibility_of_element_located((By.CLASS_NAME, "loading.ivu-spin.ivu-spin-large.ivu-spin-fix")))
