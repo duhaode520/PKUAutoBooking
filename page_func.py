@@ -369,21 +369,26 @@ def click_submit_order(driver, tt_usr, tt_pwd):
             raise Exception("验证失败")
         base_img = driver.find_element(
             By.XPATH, '/html/body/div[1]/div/div/div[3]/div[2]/div/div[2]/div[2]/div/div[2]/div/div[1]/div/img')
-        slide_img = driver.find_element(
-            By.XPATH, '/html/body/div[1]/div/div/div[3]/div[2]/div/div[2]/div[2]/div/div[2]/div/div[2]/div/div/div/img')
-        base, slide = base_img.get_attribute('src').replace(
-            'data:image/png;base64,', ''), slide_img.get_attribute('src').replace('data:image/png;base64,', '')
-        scale = base_img.size['width'] / get_size(base)[0]
-        x, y = verify(base, slide, tt_usr, tt_pwd)
-        dragger = driver.find_element(By.CSS_SELECTOR, 'body > div.fullHeight > div > div > div.coach > div.venueSiteWrap > div > div.reservation-step-two > div.mask > div > div.verifybox-bottom > div > div.verify-bar-area > div > div')
-        action = ActionChains(driver)
-        action.drag_and_drop_by_offset(dragger, xoffset=x*scale, yoffset=0).perform()
-        WebDriverWait(driver, 5).until_not(
-            EC.visibility_of_element_located((By.CLASS_NAME, "loading.ivu-spin.ivu-spin-large.ivu-spin-fix")))
-        if check_element_exist(driver, By.CLASS_NAME, 'payHandle'):
-            break;
-        else:
+        click_text = driver.find_element(
+            By.XPATH,  '/html/body/div[1]/div/div/div[3]/div[2]/div/div[2]/div[2]/div/div[2]/div/div[2]/span')
+        base = base_img.get_attribute('src').replace('data:image/png;base64,', '')
+        text = click_text.text.replace(',', '')
+        content = text[text.find('【')+1:text.find('】')].encode('unicode_escape')
+        # scale = base_img.size['width'] / get_size(base)[0]
+        try:
+            points = verify(base, content, tt_usr, tt_pwd)
+            action = ActionChains(driver)
+            for point in points:
+                action.move_to_element_with_offset(base_img ,point[0], point[1]).click().perform()
+            WebDriverWait(driver, 5).until_not(
+                EC.visibility_of_element_located((By.CLASS_NAME, "loading.ivu-spin.ivu-spin-large.ivu-spin-fix")))
+            if check_element_exist(driver, By.CLASS_NAME, 'payHandle'):
+                break;
+            else:
+                captcha_time += 1
+        except:
             captcha_time += 1
+
 
     print("提交订单成功")
     log_str += "提交订单成功\n"
