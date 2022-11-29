@@ -15,7 +15,8 @@ def verify(base, content, username, password, retry=0):
         raise Exception('retry 3 times in captcha')
     data = {"username": username, "password": password,
             "typeid": 43, "image": base, "content": content}
-    result = json.loads(requests.post("http://api.ttshitu.com/predict", json=data).text)
+    resp = requests.post("http://api.ttshitu.com/predict", json=data).text
+    result = json.loads(resp)
     if result['success']:
         result_str = result['data']['result'].split('|')
         points = [list(map(int, p.split(','))) for p in result_str]
