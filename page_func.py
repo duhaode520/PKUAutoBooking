@@ -395,7 +395,9 @@ def click_submit_order(driver, tt_usr, tt_pwd):
 
             WebDriverWait(driver, 5).until_not(
                 EC.visibility_of_element_located((By.CLASS_NAME, "loading.ivu-spin.ivu-spin-large.ivu-spin-fix")))
-            if check_element_exist(driver, By.CLASS_NAME, 'payHandle'):
+            WebDriverWait(driver, 2).until(
+                EC.visibility_of_element_located((By.XPATH, "/html/body/div[1]/div/div/div[3]/div[2]/div/div[3]/div[8]/div[2]/button")))
+            if check_element_exist(driver, By.XPATH, '/html/body/div[1]/div/div/div[3]/div[2]/div/div[3]/div[8]/div[2]/button'):
                 break
             else:
                 captcha_time += 1

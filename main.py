@@ -9,7 +9,9 @@ import sys
 import multiprocessing as mp
 from env_check import *
 from page_func import *
-from notice import *
+# from notice import *
+# from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.service import Service as ChromeService
 
 warnings.filterwarnings('ignore')
 
@@ -74,7 +76,6 @@ def log_status(config, start_time, log_str):
 def page(config, browser="chrome"):
     user_name, password, tt_usr, tt_pwd, venue, venue_num, start_time, end_time, wechat_notice, sckey = load_config(
         config)
-
     log_str = ""
     status = True
     start_time_list_new, end_time_list_new, delta_day_list, log_exceeds = judge_exceeds_days_limit(
@@ -91,6 +92,10 @@ def page(config, browser="chrome"):
         driver = webdriver.Chrome(
             options=chrome_options,
             executable_path=sys_path(browser="chrome"))
+        # driver = webdriver.Chrome(
+        #     options=chrome_options,
+        #     service=ChromeService(ChromeDriverManager().install())
+        # )
             # service_args=['--ignore-ssl-errors=true', '--ssl-protocol=TLSv1'])
         print('chrome launched\n')
     elif browser == "firefox":
