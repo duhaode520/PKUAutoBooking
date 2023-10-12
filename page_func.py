@@ -208,7 +208,8 @@ def book(driver, start_time_list, end_time_list, delta_day_list, venue_num=-1):
                 driver.refresh()
                 no_table_flag = 0
                 move_to_date(delta_day)
-        trs_list = []
+
+        trs_list = [] # 抓取的tr列表，对应具体的场次
         for i in range(1, len(trs)-2):
             vt = trs[i].find_elements(By.TAG_NAME,
                                       'td')[0].find_element(By.TAG_NAME, 'div').text
@@ -217,9 +218,9 @@ def book(driver, start_time_list, end_time_list, delta_day_list, venue_num=-1):
         if len(trs_list) == 0:
             return False, -1, 0
 
-        j_list = [x for x in range(1, len(trs_list[0]))]
-        print(venue_num, table_num, j_list)
-        if venue_num != -1 and (venue_num-table_num in j_list):
+        j_index_list = [x for x in range(1, len(trs_list[0]))]
+        print(venue_num, table_num, j_index_list)
+        if venue_num != -1 and (venue_num-table_num in j_index_list):
             flag = False
             for i in range(len(trs_list)):
                 class_name = trs_list[i][venue_num-table_num].find_element(
@@ -228,13 +229,13 @@ def book(driver, start_time_list, end_time_list, delta_day_list, venue_num=-1):
                 if class_name.split()[2] == 'free':
                     flag = True
                     break
-        elif venue_num != -1 and (venue_num-table_num not in j_list):
-            return False, venue_num, table_num + len(j_list)
+        elif venue_num != -1 and (venue_num-table_num not in j_index_list):
+            return False, venue_num, table_num + len(j_index_list)
         else:
             # 随机点一列free的，防止每次都点第一列
-            random.shuffle(j_list)
-            print(j_list)
-            for j in j_list:
+            random.shuffle(j_index_list)
+            print(j_index_list)
+            for j in j_index_list:
                 flag = False
                 for i in range(len(trs_list)):
                     class_name = trs_list[i][j].find_element(
@@ -244,6 +245,8 @@ def book(driver, start_time_list, end_time_list, delta_day_list, venue_num=-1):
                         flag = True
                         venue_num = j+table_num
                         break
+                if flag:
+                    break
         if flag:
             for i in range(len(trs_list)):
                 WebDriverWait(driver, 10).until_not(
@@ -251,8 +254,8 @@ def book(driver, start_time_list, end_time_list, delta_day_list, venue_num=-1):
                                                       "loading.ivu-spin.ivu-spin-large.ivu-spin-fix.fade-leave-active.fade-leave-to")))
                 trs_list[i][venue_num -
                             table_num].find_element(By.TAG_NAME, 'div').click()
-            return True, venue_num, table_num + len(j_list)
-        return False, venue_num, table_num + len(j_list)
+            return True, venue_num, table_num + len(j_index_list)
+        return False, venue_num, table_num + len(j_index_list)
 
     driver.switch_to.window(driver.window_handles[-1])
     time.sleep(1)
