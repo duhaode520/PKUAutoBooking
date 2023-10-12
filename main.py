@@ -9,12 +9,13 @@ import sys
 import multiprocessing as mp
 from env_check import *
 from page_func import *
-# from notice import *
-# from webdriver_manager.chrome import ChromeDriverManager
+import logging
+from log import setup_logger
 from selenium.webdriver.chrome.service import Service as ChromeService
 
 warnings.filterwarnings('ignore')
 
+DEBUG_FLAG = true
 
 def sys_path(browser):
     path = 'driver'
@@ -73,7 +74,7 @@ def log_status(config, start_time, log_str):
     print("记录日志成功\n")
 
 
-def page(config, browser="chrome"):
+def page(config:str, logger, browser:str="chrome"):
     user_name, password, tt_usr, tt_pwd, venue, venue_num, start_time, end_time, wechat_notice, sckey = load_config(
         config)
     log_str = ""
@@ -88,15 +89,11 @@ def page(config, browser="chrome"):
         return False
     if browser == "chrome":
         chrome_options = Chrome_Options()
-        chrome_options.add_argument("--headless")
+        # chrome_options.add_argument("--headless")
         driver = webdriver.Chrome(
             options=chrome_options,
             executable_path=sys_path(browser="chrome"))
-        # driver = webdriver.Chrome(
-        #     options=chrome_options,
-        #     service=ChromeService(ChromeDriverManager().install())
-        # )
-            # service_args=['--ignore-ssl-errors=true', '--ssl-protocol=TLSv1'])
+
         print('chrome launched\n')
     elif browser == "firefox":
         firefox_options = Firefox_Options()
@@ -136,7 +133,7 @@ def page(config, browser="chrome"):
             venue_num = tmp_venue_num
             break
         else:
-            time.sleep(3)
+            time.sleep(2 + random.random())
             
     else:
         log_str += "点击预约表格失败\n"
@@ -200,10 +197,12 @@ def multi_run(lst_conf, browser="chrome"):
     pool.close()
     pool.join()
 
-def task(config, browser):
+
+def task(config_name:str, browser_name:str, process_id=None):
     status = False
+    logger = setup_logger(config_name, process_id)
     while not status:
-        status = page(config, browser)
+        status = page(config_name, browser_name, logger)
       
 
 if __name__ == '__main__':
