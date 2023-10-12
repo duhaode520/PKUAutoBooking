@@ -88,7 +88,7 @@ def page(config, browser="chrome"):
         return False
     if browser == "chrome":
         chrome_options = Chrome_Options()
-        # chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--headless")
         driver = webdriver.Chrome(
             options=chrome_options,
             executable_path=sys_path(browser="chrome"))
