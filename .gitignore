@@ -4,3 +4,4 @@ __pycache__
 run*.bat
 main*.py
 *.ipynb
+log/*

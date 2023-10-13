@@ -14,24 +14,25 @@ def setup_logger(config_path:str, process_id:int = None) -> logging.Logger:
     log_dir = './log'
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
-    timestamp = int(time.time())
+    now = datetime.datetime.now()
+    fmt_time = now.strftime("%Y%m%d_%H_%M_%S")
 
-    logfile_name = f"{logger_name}_{process_id}_{timestamp}.log" if  process_id else f"{logger_name}_{timestamp}.txt"
+    logfile_name = f"{logger_name}_{process_id}_{fmt_time}.log" if  process_id else f"{logger_name}_{fmt_time}.log"
     log_path = os.path.join(log_dir, logfile_name)
     
     logger = logging.getLogger(logger_name)
     logger.setLevel(logging.DEBUG)
 
     # 创建文件处理器，将日志写入到log.txt文件中
-    file_handler = logging.FileHandler(log_path)
+    file_handler = logging.FileHandler(log_path, encoding='utf-8')
     file_handler.setLevel(logging.DEBUG)
 
     # 创建控制台处理器，将大于debug级别的日志输出到控制台
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.WARNING)
+    console_handler.setLevel(logging.INFO)
 
     # 创建日志格式器
-    formatter = logging.Formatter("%(asctime)s %(name)s[%(levelname)s] %(message)s")
+    formatter = logging.Formatter("%(asctime)s %(name)s [%(levelname)s] %(message)s")
 
     # 将格式器添加到处理器
     file_handler.setFormatter(formatter)

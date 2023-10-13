@@ -202,7 +202,7 @@ def task(config_name:str, browser_name:str, process_id=None):
     status = False
     logger = setup_logger(config_name, process_id)
     while not status:
-        status = page(config_name, browser_name, logger)
+        status = page(config_name, logger, browser_name)
       
 
 if __name__ == '__main__':
