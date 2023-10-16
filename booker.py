@@ -106,11 +106,14 @@ class Booker:
 
     def keep_run(self):
         retry_times = 0
-        self.book()
         while not self.court_locked:
             retry_times += 1
-            self.logger.info("第 %d 次整体重试" % retry_times)
-            self.book()
+            try:
+                self.book()
+            except Exception as e:
+                self.logger.error(e)
+                self.logger.debug(e, exc_info=True, stack_info=True)
+                self.logger.info("第 %d 次预约尝试失败" % retry_times + 1)
             
         if self.court_locked and (not self.status):
             self.logger.warn("场地已锁定，但是预约付款失败")
