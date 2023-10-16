@@ -104,6 +104,17 @@ class Booker:
             if self.wechat_notice:
                 wechat_push(self.sckey, '预定成功', '锁定的场地已成功自动付款', self.logger)
 
+    def keep_run(self):
+        retry_times = 0
+        self.book()
+        while not self.court_locked:
+            retry_times += 1
+            self.logger.info("第 %d 次整体重试" % retry_times)
+            self.book()
+            
+        if self.court_locked and (not self.status):
+            self.logger.warn("场地已锁定，但是预约付款失败")
+
     def __judge_exceeds_days_limit(self, start_time: str, end_time: str) -> tuple:
         """判断预约日期是否超过3天
 
@@ -203,7 +214,7 @@ class Booker:
 
         if self.browser_name == "chrome":
             chrome_options = Chrome_Options()
-            # chrome_options.add_argument("--headless")
+            chrome_options.add_argument("--headless")
             # 下面这两个option 用来解决 ssl error code 1, net_error -101 问题
             chrome_options.add_argument('-ignore-certificate-errors')
             chrome_options.add_argument('-ignore -ssl-errors')
