@@ -1,6 +1,8 @@
-*.ini
+config?.ini
+config??.ini
 __pycache__
 *.log
 run*.bat
 main*.py
 *.ipynb
+log/*
