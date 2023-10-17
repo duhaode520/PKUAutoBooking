@@ -66,8 +66,9 @@ class Booker:
 
         # 如果没有有效的预约日期, 则退出
         if len(start_time_list) == 0:
-            self.logger.warn("没有可用的预约日期")
+            self.logger.warn("没有可用的预约日期, 一分钟后重试")
             self.status = False
+            time.sleep(60)
             return
 
         # 初始化浏览器
@@ -447,7 +448,7 @@ class Booker:
             if now.hour == 12:
                 break
             else:
-                time.sleep(0.5)
+                time.sleep(0.1)
 
     def __move_to_date(self, delta_day: int) -> None:
         """移动表格页面到对应的日期"""
