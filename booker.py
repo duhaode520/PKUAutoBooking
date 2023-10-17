@@ -270,19 +270,23 @@ class Booker:
         """
 
         portalURL = "https://portal.pku.edu.cn/portal2017"
-        for i in range(max_retry):
+        for i in range(max_retry+1):
             try:
+                if (i > 0):
+                    self.logger.info(f'Retrying {i} / {max_retry}.')
                 self.driver.get(portalURL)
                 time.sleep(1)
                 # 等待界面出现
                 WebDriverWait(self.driver, 10).until(
-                    EC.presence_of_all_elements_located((By.TAG_NAME, "div")))
-
-                self.driver.find_element(By.CLASS_NAME, 'mainWrap02'
-                                         ).find_element(By.PARTIAL_LINK_TEXT, '请登录'
-                                                        ).click()
+                    EC.presence_of_all_elements_located((By.CLASS_NAME, "mainWrap02")))
 
                 # 跳转到登陆界面
+                # 找到 '请登录' 按钮
+                mainWindow = self.driver.find_element(By.CLASS_NAME, 'mainWrap02')
+                mainWindow.find_element(By.CLASS_NAME, 'subNavLeft'
+                                        ).find_element(By.CLASS_NAME, 'ng-binding').click()
+                # 不能在 --headless 的情况下使用以下方式寻找元素，原因不明
+                # mainWindow.find_element(By.PARTIAL_LINK_TEXT, '请登录').click()
                 self.logger.info("门户登陆中...")
                 WebDriverWait(self.driver, 10).until(
                     EC.presence_of_element_located((By.ID, "user_name")))
@@ -314,13 +318,16 @@ class Booker:
                 self.logger.info("门户登录成功")
                 break
             except Exception as e:
-                self.logger.info(f'Retrying {i+1} / {max_retry}.')
+                if i == max_retry:
+                    raise e
                 self.logger.debug(e)
                 self.logger.debug(e, exc_info=True, stack_info=True)
 
     @stage(stage_name="进入预约界面")
     def __go_to_venue_page(self, max_retry: int = 3) -> None:
-        for i in range(max_retry):
+        for i in range(max_retry+1):
+            if i > 0:
+                self.logger.info(f'Retrying {i} / {max_retry}.')
             try:
                 self.logger.info("进入预约界面...")
 
@@ -363,7 +370,8 @@ class Booker:
                 # TODO: 这里要加一个判断有没有载入成功的逻辑
                 break
             except Exception as e:
-                self.logger.info(f'Retrying {i+1} / {max_retry}.')
+                if i == max_retry:
+                    raise e
                 self.logger.debug(e)
                 self.logger.debug(e, exc_info=True, stack_info=True)
 
@@ -442,12 +450,12 @@ class Booker:
     def __spin_wait_until_12(self) -> None:
         """循环等待到12点 """
         # 等待到12点
-        self.logger.info("抢场时间未到，等待中...")
         while True:
             now = datetime.datetime.now()
-            if now.hour == 12:
+            if now.hour >= 12:
                 break
             else:
+                self.logger.info("抢场时间未到，等待中...")
                 time.sleep(0.1)
 
     def __move_to_date(self, delta_day: int) -> None:
@@ -598,7 +606,9 @@ class Booker:
     @stage(stage_name="填写验证码")
     def __complete_captcha(self, max_retry=3) -> None:
         wait_loading_complete(self.driver, (By.CLASS_NAME, 'verify-img-out'))
-        for i in range(max_retry):
+        for i in range(max_retry+1):
+            if i > 0:
+                self.logger.info(f'Retrying {i} / {max_retry}.')
             # 得到验证图片的base64
             base_img_element = self.driver.find_element(
                 By.CLASS_NAME, 'verify-img-out').find_element(By.TAG_NAME, 'img')
@@ -631,10 +641,10 @@ class Booker:
                     self.court_locked = True
                     break
             except Exception as e:
-                if i == max_retry - 1:
+                if i == max_retry:
                     # 达到最大重试次数，抛出异常
                     raise e
-                self.logger.error(f"验证码识别失败, 准备第 {i+1} 次重试")
+                self.logger.error(f"验证码识别失败")
                 self.logger.debug(e, exc_info=True, stack_info=True)
 
     @stage(stage_name="付款")
