@@ -1,14 +1,9 @@
 from configparser import ConfigParser
-import warnings
 import multiprocessing as mp
 from booker import Booker
 from env_check import *
 from page_func import *
 from log import setup_logger
-
-warnings.filterwarnings('ignore')
-
-DEBUG_FLAG = true
 
 def sequence_run(lst_conf, browser="chrome"):
     print("按序预约")
