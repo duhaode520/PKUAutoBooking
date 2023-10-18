@@ -428,16 +428,19 @@ class Booker:
             table_num = 0
             is_find = False
             while not is_find:
+                # 等待加载完成
+                wait_loading_complete(self.driver, (By.CLASS_NAME, 'tableWrap'))
+
                 is_find = self.__click_available_court(
                     start_hour, end_hour, delta_day, table_num)
                 table_num += 1
-
                 # 找有没有下一个表
                 table_div = self.driver.find_element(
                     By.CLASS_NAME, 'tableWrap')
                 forward_arrow = table_div.find_elements(
                     By.CLASS_NAME, 'ivu-icon-ios-arrow-forward')
                 if forward_arrow:
+                    # FIXME: 感觉这个可能需要包装一个move into and click 函数, 明天再看下有没有相同的报错
                     forward_arrow[0].click()
                 else:
                     break
@@ -572,8 +575,9 @@ class Booker:
             rows = self.driver.find_elements(By.TAG_NAME, 'tr')
             if no_table_count > 10:
                 self.driver.refresh()
+                wait_loading_complete(self.driver, (By.CLASS_NAME, 'tableWrap'))
                 no_table_count = 0
-                self.move_to_date(delta_day)
+                self.__move_to_date(delta_day)
         return rows
 
     @stage(stage_name="确认预约")
