@@ -1,14 +1,9 @@
 from configparser import ConfigParser
-import warnings
 import multiprocessing as mp
 from booker import Booker
 from env_check import *
 from page_func import *
 from log import setup_logger
-
-warnings.filterwarnings('ignore')
-
-DEBUG_FLAG = true
 
 def sequence_run(lst_conf, browser="chrome"):
     print("按序预约")
@@ -36,6 +31,7 @@ def task(config_name:str, browser_name:str, process_id=None):
 
 if __name__ == '__main__':
     browser = "chrome"
+    # TODO: 给配置文件设置是否启用的选项
     lst_conf = env_check()
     print("本次使用的config文件:" + str(lst_conf))
     # multi_run(lst_conf, browser)

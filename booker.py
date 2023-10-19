@@ -4,7 +4,6 @@ from configparser import ConfigParser
 import sys
 import os
 from os import stat
-import warnings
 import time
 from functools import wraps
 import datetime
@@ -22,7 +21,6 @@ from selenium.webdriver.common.by import By
 from utils import verify, get_size, check_element_exist, wait_loading_complete, element_click
 from log import setup_logger
 from notice import wechat_push
-warnings.filterwarnings('ignore')
 
 
 class Booker:
@@ -222,6 +220,9 @@ class Booker:
             # 下面这两个option 用来解决 ssl error code 1, net_error -101 问题
             chrome_options.add_argument('-ignore-certificate-errors')
             chrome_options.add_argument('-ignore -ssl-errors')
+            # 忽略selenium自带的报警日志，让日志变得清爽
+            # 如:[1017/143755.402:INFO:CONSOLE(84)] "pascalprecht.translate.$translateSanitization: No sanitization strategy has been configured. This can have serious security implications. See http://angular-translate.github.io/docs/#/guide/19_security for details.", source: https://portal.pku.edu.cn/portal2017/js/angular.min.js (84)
+            chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
             self.driver = webdriver.Chrome(
                 options=chrome_options,
                 executable_path=get_driver_path(browser="chrome"))
