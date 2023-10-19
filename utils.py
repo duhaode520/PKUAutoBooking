@@ -65,5 +65,16 @@ def wait_loading_complete(driver, locator=None, wait_seconds=10) -> None:
         WebDriverWait(driver, wait_seconds).until(
             EC.visibility_of_element_located(locator))
 
+def element_click(driver, element):
+    """解决selenium的click无效的问题
+    
+    多个 stackoverflow 页面和 CSDN blogs 都提到了这个问题
+    这里先尝试直接点选，在失败的情况下再使用 js 脚本来点击
+    """
+    try:
+        element.click()
+    except:
+        driver.execute_script("arguments[0].click();", element)
+
 # if __name__ == '__main__':
 	# result = verify(base, slide)

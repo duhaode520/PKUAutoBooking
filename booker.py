@@ -19,7 +19,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 
 
-from utils import verify, get_size, check_element_exist, wait_loading_complete
+from utils import verify, get_size, check_element_exist, wait_loading_complete, element_click
 from log import setup_logger
 from notice import wechat_push
 warnings.filterwarnings('ignore')
@@ -283,8 +283,9 @@ class Booker:
                 # 跳转到登陆界面
                 # 找到 '请登录' 按钮
                 mainWindow = self.driver.find_element(By.CLASS_NAME, 'mainWrap02')
-                mainWindow.find_element(By.CLASS_NAME, 'subNavLeft'
-                                        ).find_element(By.CLASS_NAME, 'ng-binding').click()
+                loginBtn = mainWindow.find_element(By.CLASS_NAME, 'subNavLeft'
+                                        ).find_element(By.CLASS_NAME, 'ng-binding')
+                element_click(self.driver, loginBtn)
                 # 不能在 --headless 的情况下使用以下方式寻找元素，原因不明
                 # mainWindow.find_element(By.PARTIAL_LINK_TEXT, '请登录').click()
                 self.logger.info("门户登陆中...")
@@ -297,7 +298,8 @@ class Booker:
                 self.driver.find_element(
                     By.ID, "password").send_keys(self.password)
                 time.sleep(0.5)
-                self.driver.find_element(By.ID, "logon_button").click()
+                # self.driver.find_element(By.ID, "logon_button").click()
+                element_click(self.driver, self.driver.find_element(By.ID, "logon_button"))
 
                 # 检测有没有加载到下一个页面，这里检测门户对应的表格和'全部'按钮
                 WebDriverWait(self.driver,
@@ -333,13 +335,13 @@ class Booker:
 
                 # 点击全部按钮，显示出智慧场馆按钮
                 butt_all = self.driver.find_element(By.ID, 'all')
-                self.driver.execute_script('arguments[0].click();', butt_all)
+                element_click(self.driver, butt_all)
 
                 wait_loading_complete(self.driver, (By.ID, 'venues'))
                 time.sleep(0.5)
 
                 # 点击智慧场馆按钮
-                self.driver.find_element(By.ID, 'venues').click()
+                element_click(self.driver, self.driver.find_element(By.ID, 'venues'))
                 # 打开智慧场馆会新跳出一个界面，通过判断窗口数量来判断是否打开了新界面
                 while len(self.driver.window_handles) < 2:
                     time.sleep(0.5)
@@ -354,15 +356,15 @@ class Booker:
                     By.CLASS_NAME, 'funModuleItem')
                 for item in items:
                     if '场地预约' in item.text:
-                        item.click()
+                        element_click(self.driver, item)
                         break
 
                 # '//div [contains(text(),\'%s\')]' 这个是对应羽毛球场/羽毛球馆的按钮的xpath
                 wait_loading_complete(
                     self.driver, (By.XPATH, '//div [contains(text(),\'%s\')]' % self.venue))
                 time.sleep(0.5)
-                self.driver.find_element(
-                    By.XPATH, '//div [contains(text(),\'%s\')]' % self.venue).click()
+
+                element_click(self.driver, self.driver.find_element(By.XPATH, '//div [contains(text(),\'%s\')]' % self.venue))
                 wait_loading_complete(
                     self.driver, (By.CLASS_NAME, 'ivu-form-item-content'))
 
@@ -439,8 +441,7 @@ class Booker:
                 forward_arrow = table_div.find_elements(
                     By.CLASS_NAME, 'ivu-icon-ios-arrow-forward')
                 if forward_arrow:
-                    # FIXME: 感觉这个可能需要包装一个move into and click 函数, 明天再看下有没有相同的报错
-                    forward_arrow[0].click()
+                    element_click(self.driver, forward_arrow[0])
                 else:
                     break
             if is_find:
@@ -470,7 +471,7 @@ class Booker:
                 By.CLASS_NAME, 'ivu-form-item-content')
             btn = head.find_elements(By.CLASS_NAME, 'ivu-btn')
             # btn0是向前的按钮，btn1是向后的按钮
-            btn[1].click()
+            element_click(self.driver, btn[1])
             time.sleep(0.1)
 
     def __click_available_court(self, start_time: datetime.datetime, end_time: datetime.datetime, delta_day: int, table_num: int) -> bool:
@@ -554,7 +555,7 @@ class Booker:
                 cell = valid_rows_list[i][col_index].find_element(
                     By.TAG_NAME, 'div')
                 if 'free' in cell.get_attribute('class').split():
-                    cell.click()
+                    element_click(self.driver, cell)
                     self.venue_time_list.append(venue_time_list[i])
             return True
         return False
@@ -589,14 +590,14 @@ class Booker:
         self.logger.info("同意预约须知")
         wait_loading_complete(
             self.driver, (By.CLASS_NAME, 'ivu-checkbox-wrapper'))
-        self.driver.find_element(By.CLASS_NAME, 'ivu-checkbox-wrapper').click()
+        element_click(self.driver, self.driver.find_element(By.CLASS_NAME, 'ivu-checkbox-wrapper'))
 
         # 点击'我要预约'
         self.logger.info("点击'我要预约'")
         wait_loading_complete(self.driver, (By.CLASS_NAME, 'payHandle'))
         payBtns = self.driver.find_element(
             By.CLASS_NAME, 'reservationStep1').find_elements(By.CLASS_NAME, 'payHandleItem')
-        payBtns[1].click()
+        element_click(self.driver, payBtns[1])
 
     @stage(stage_name="提交订单")
     def __submit_order(self) -> None:
@@ -605,7 +606,7 @@ class Booker:
         wait_loading_complete(self.driver, (By.CLASS_NAME, 'payHandleItem'))
         submitBtns = self.driver.find_element(
             By.CLASS_NAME, 'reservation-step-two').find_elements(By.CLASS_NAME, 'payHandleItem')
-        submitBtns[1].click()
+        element_click(self.driver, submitBtns[1])
 
     @stage(stage_name="填写验证码")
     def __complete_captcha(self, max_retry=3) -> None:
@@ -658,11 +659,11 @@ class Booker:
         # 选择使用校园卡
         payMent = self.driver.find_element(By.CLASS_NAME, 'payMent')
         payMentItems = payMent.find_elements(By.CLASS_NAME, 'payMentItem')
-        payMentItems[0].click()
+        element_click(self.driver, payMentItems[0])
         # 点击确认支付
         payHandle = self.driver.find_elements(By.CLASS_NAME, 'payHandle')[1]
         payBtns = payHandle.find_elements(By.TAG_NAME, 'button')
-        payBtns[1].click()
+        element_click(self.driver, payBtns[1])
 
         # 检查是否成功
         wait_loading_complete(self.driver, (By.CLASS_NAME, 'promoptCon'))
