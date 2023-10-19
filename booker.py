@@ -16,7 +16,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-
+from selenium.common.exceptions import TimeoutException
 
 from utils import verify, get_size, check_element_exist, wait_loading_complete, element_click
 from log import setup_logger
@@ -56,7 +56,7 @@ class Booker:
         self.end_time = conf['time']['end_time']
         self.wechat_notice = conf.getboolean('wechat', 'wechat_notice')
         self.sckey = conf['wechat']['SCKEY']
-
+    
     def book(self) -> None:
         self.status = True
         start_time_list, end_time_list, delta_day_list = self.__judge_exceeds_days_limit(
@@ -78,6 +78,7 @@ class Booker:
         # 进入预约界面
         self.__go_to_venue_page()
 
+        # 从这里直到付款，任意一次刷新都会回到查找空闲场地
         # 查找空闲场地
         self.__find_available_court(
             start_time_list, end_time_list, delta_day_list)
@@ -261,9 +262,30 @@ class Booker:
                     self.status = False
             return wrapper
         return decorate
+    
+    def retry(max_retry: int = 3):
+        def decorate(func):
+            @wraps(func)
+            def wrapper(self, *args, **kwargs):
+                if not self.status:
+                    return
+                for i in range(max_retry+1):
+                    if i > 0:
+                        self.logger.info(f'Retrying {i} / {max_retry}.')
+                    try:
+                        func(self, *args, **kwargs)
+                        break
+                    except Exception as e:
+                        if i == max_retry:
+                            raise e
+                        self.logger.debug(e)
+                        self.logger.debug(e, exc_info=True, stack_info=True)
+            return wrapper
+        return decorate
 
     @stage(stage_name="登录")
-    def __login(self, max_retry: int = 3) -> None:
+    @retry(max_retry=3)
+    def __login(self) -> None:
         """登录
 
         Args:
@@ -271,112 +293,93 @@ class Booker:
         """
 
         portalURL = "https://portal.pku.edu.cn/portal2017"
-        for i in range(max_retry+1):
-            try:
-                if (i > 0):
-                    self.logger.info(f'Retrying {i} / {max_retry}.')
-                self.driver.get(portalURL)
-                time.sleep(1)
-                # 等待界面出现
-                WebDriverWait(self.driver, 10).until(
-                    EC.presence_of_all_elements_located((By.CLASS_NAME, "mainWrap02")))
+        self.driver.get(portalURL)
+        time.sleep(1)
+        # 等待界面出现
+        WebDriverWait(self.driver, 10).until(
+            EC.presence_of_all_elements_located((By.CLASS_NAME, "mainWrap02")))
 
-                # 跳转到登陆界面
-                # 找到 '请登录' 按钮
-                mainWindow = self.driver.find_element(By.CLASS_NAME, 'mainWrap02')
-                loginBtn = mainWindow.find_element(By.CLASS_NAME, 'subNavLeft'
-                                        ).find_element(By.CLASS_NAME, 'ng-binding')
-                element_click(self.driver, loginBtn)
-                # 不能在 --headless 的情况下使用以下方式寻找元素，原因不明
-                # mainWindow.find_element(By.PARTIAL_LINK_TEXT, '请登录').click()
-                self.logger.info("门户登陆中...")
-                WebDriverWait(self.driver, 10).until(
-                    EC.presence_of_element_located((By.ID, "user_name")))
-                # 所有的 time.sleep都是防止被识别，这里多留一点时间sleep也没什么影响，这里应该是在抢票时间到之前就已经登录好了
-                self.driver.find_element(
-                    By.ID, "user_name").send_keys(self.user_name)
-                time.sleep(0.5)
-                self.driver.find_element(
-                    By.ID, "password").send_keys(self.password)
-                time.sleep(0.5)
-                # self.driver.find_element(By.ID, "logon_button").click()
-                element_click(self.driver, self.driver.find_element(By.ID, "logon_button"))
+        # 跳转到登陆界面
+        # 找到 '请登录' 按钮
+        mainWindow = self.driver.find_element(By.CLASS_NAME, 'mainWrap02')
+        loginBtn = mainWindow.find_element(By.CLASS_NAME, 'subNavLeft'
+                                ).find_element(By.CLASS_NAME, 'ng-binding')
+        element_click(self.driver, loginBtn)
+        # 不能在 --headless 的情况下使用以下方式寻找元素，原因不明
+        # mainWindow.find_element(By.PARTIAL_LINK_TEXT, '请登录').click()
+        self.logger.info("门户登陆中...")
+        WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located((By.ID, "user_name")))
+        # 所有的 time.sleep都是防止被识别，这里多留一点时间sleep也没什么影响，这里应该是在抢票时间到之前就已经登录好了
+        self.driver.find_element(
+            By.ID, "user_name").send_keys(self.user_name)
+        time.sleep(0.5)
+        self.driver.find_element(
+            By.ID, "password").send_keys(self.password)
+        time.sleep(0.5)
+        # self.driver.find_element(By.ID, "logon_button").click()
+        element_click(self.driver, self.driver.find_element(By.ID, "logon_button"))
 
-                # 检测有没有加载到下一个页面，这里检测门户对应的表格和'全部'按钮
-                WebDriverWait(self.driver,
-                              10).until(EC.visibility_of_element_located((By.CLASS_NAME, 'no-border-table')))
-                WebDriverWait(self.driver,
-                              10).until(EC.visibility_of_element_located((By.ID, 'all')))
+        # 检测有没有加载到下一个页面，这里检测门户对应的表格和'全部'按钮
+        WebDriverWait(self.driver,
+                        10).until(EC.visibility_of_element_located((By.CLASS_NAME, 'no-border-table')))
+        WebDriverWait(self.driver,
+                        10).until(EC.visibility_of_element_located((By.ID, 'all')))
 
-                # 检测有没有弹窗
-                # 疫情防控期间的弹窗逻辑，现在好像没有这个了，或许 deprecated
-                if check_element_exist(self.driver, By.XPATH, '/html/body/div[1]/div[5]/div/div/div[1]/div/div/table'):
-                    # 这里随便点一下消除弹窗
-                    ActionChains(self.driver)\
-                        .move_to_element(self.driver.find_element(By.XPATH, "/html/body/div[1]/header/section/section[2]/section[1]"))\
-                        .click()\
-                        .perform()
+        # 检测有没有弹窗
+        # 疫情防控期间的弹窗逻辑，现在好像没有这个了，或许 deprecated
+        if check_element_exist(self.driver, By.XPATH, '/html/body/div[1]/div[5]/div/div/div[1]/div/div/table'):
+            # 这里随便点一下消除弹窗
+            ActionChains(self.driver)\
+                .move_to_element(self.driver.find_element(By.XPATH, "/html/body/div[1]/header/section/section[2]/section[1]"))\
+                .click()\
+                .perform()
 
-                time.sleep(0.2)
-                self.logger.info("门户登录成功")
-                break
-            except Exception as e:
-                if i == max_retry:
-                    raise e
-                self.logger.debug(e)
-                self.logger.debug(e, exc_info=True, stack_info=True)
+        time.sleep(0.2)
+        self.logger.info("门户登录成功")
 
     @stage(stage_name="进入预约界面")
+    @retry(max_retry=3)
     def __go_to_venue_page(self, max_retry: int = 3) -> None:
-        for i in range(max_retry+1):
-            if i > 0:
-                self.logger.info(f'Retrying {i} / {max_retry}.')
-            try:
-                self.logger.info("进入预约界面...")
+        self.logger.info("进入预约界面...")
 
-                # 点击全部按钮，显示出智慧场馆按钮
-                butt_all = self.driver.find_element(By.ID, 'all')
-                element_click(self.driver, butt_all)
+        # 点击全部按钮，显示出智慧场馆按钮
+        butt_all = self.driver.find_element(By.ID, 'all')
+        element_click(self.driver, butt_all)
 
-                wait_loading_complete(self.driver, (By.ID, 'venues'))
-                time.sleep(0.5)
+        wait_loading_complete(self.driver, (By.ID, 'venues'))
+        time.sleep(0.5)
 
-                # 点击智慧场馆按钮
-                element_click(self.driver, self.driver.find_element(By.ID, 'venues'))
-                # 打开智慧场馆会新跳出一个界面，通过判断窗口数量来判断是否打开了新界面
-                while len(self.driver.window_handles) < 2:
-                    time.sleep(0.5)
-                self.driver.switch_to.window(self.driver.window_handles[-1])
+        # 点击智慧场馆按钮
+        element_click(self.driver, self.driver.find_element(By.ID, 'venues'))
+        # 打开智慧场馆会新跳出一个界面，通过判断窗口数量来判断是否打开了新界面
+        while len(self.driver.window_handles) < 2:
+            time.sleep(0.5)
+        self.driver.switch_to.window(self.driver.window_handles[-1])
 
-                # 这个 funModuleItem 应该是场馆预定页面独有的，用来判断是否进入了场馆预定页面
-                wait_loading_complete(
-                    self.driver, (By.CLASS_NAME, 'funModule'))
+        # 这个 funModuleItem 应该是场馆预定页面独有的，用来判断是否进入了场馆预定页面
+        wait_loading_complete(
+            self.driver, (By.CLASS_NAME, 'funModule'))
 
-                # 找到场地预约按钮并点击
-                items = self.driver.find_element(By.CLASS_NAME, 'funModule').find_elements(
-                    By.CLASS_NAME, 'funModuleItem')
-                for item in items:
-                    if '场地预约' in item.text:
-                        element_click(self.driver, item)
-                        break
-
-                # '//div [contains(text(),\'%s\')]' 这个是对应羽毛球场/羽毛球馆的按钮的xpath
-                wait_loading_complete(
-                    self.driver, (By.XPATH, '//div [contains(text(),\'%s\')]' % self.venue))
-                time.sleep(0.5)
-
-                element_click(self.driver, self.driver.find_element(By.XPATH, '//div [contains(text(),\'%s\')]' % self.venue))
-                wait_loading_complete(
-                    self.driver, (By.CLASS_NAME, 'ivu-form-item-content'))
-
-                self.logger.info("进入预约界面成功")
-                # TODO: 这里要加一个判断有没有载入成功的逻辑
+        # 找到场地预约按钮并点击
+        items = self.driver.find_element(By.CLASS_NAME, 'funModule').find_elements(
+            By.CLASS_NAME, 'funModuleItem')
+        for item in items:
+            if '场地预约' in item.text:
+                element_click(self.driver, item)
                 break
-            except Exception as e:
-                if i == max_retry:
-                    raise e
-                self.logger.debug(e)
-                self.logger.debug(e, exc_info=True, stack_info=True)
+
+        # '//div [contains(text(),\'%s\')]' 这个是对应羽毛球场/羽毛球馆的按钮的xpath
+        wait_loading_complete(
+            self.driver, (By.XPATH, '//div [contains(text(),\'%s\')]' % self.venue))
+        time.sleep(0.5)
+
+        element_click(self.driver, self.driver.find_element(By.XPATH, '//div [contains(text(),\'%s\')]' % self.venue))
+        wait_loading_complete(
+            self.driver, (By.CLASS_NAME, 'ivu-form-item-content'))
+
+        self.logger.info("进入预约界面成功")
+        # TODO: 这里要加一个判断有没有载入成功的逻辑
 
     @stage(stage_name="查找空闲场地")
     def __find_available_court(self, start_time_list: list, end_time_list: list, delta_day_list: list) -> None:
@@ -389,12 +392,24 @@ class Booker:
         """
         is_find = False
         times = 0
+        timeout_count = 0
         while not is_find:
             times += 1
             self.logger.info("查找空闲场地, 第 %d 次尝试" % times)
-            is_find = self.__find_available_court_single(
-                start_time_list, end_time_list, delta_day_list)
-            time.sleep(2 + random.random())  # 防止封号
+            try:
+                is_find = self.__find_available_court_single(
+                    start_time_list, end_time_list, delta_day_list)
+                time.sleep(2 + random.random())  # 防止封号
+            except  Exception as e:
+                timeout_count += 1
+                if timeout_count > 3:
+                    self.logger.error("连续失败3次，退出")
+                    raise e
+                else:
+                    self.logger.error("加载失败，重试中")
+                    self.logger.debug(e, exc_info=True, stack_info=True)
+                    continue
+
 
     def __find_available_court_single(self, start_time_list: list, end_time_list: list, delta_day_list: list) -> bool:
         """ 完成单趟的查找空闲场地 """
@@ -612,10 +627,16 @@ class Booker:
     @stage(stage_name="填写验证码")
     def __complete_captcha(self, max_retry=3) -> None:
         wait_loading_complete(self.driver, (By.CLASS_NAME, 'verify-img-out'))
+        """
+        20231019 线上测试在这里有问题
+        FIXME:
+        错误路径：在识别完成后疑似没有跳转到付款界面，失败后重试时也找不到验证码图片的元素
+        """
         for i in range(max_retry+1):
             if i > 0:
                 self.logger.info(f'Retrying {i} / {max_retry}.')
             # 得到验证图片的base64
+            # FIXME: 这里重试回来之后可能网页会有变化？
             base_img_element = self.driver.find_element(
                 By.CLASS_NAME, 'verify-img-out').find_element(By.TAG_NAME, 'img')
             base_img = base_img_element.get_attribute(
@@ -641,8 +662,9 @@ class Booker:
                         base_img_element.size['height']/2
                     ).move_by_offset(
                         point[0]*scale[0], point[1]*scale[1]).click().perform()
+                # FIXME: wait to short?
                 wait_loading_complete(
-                    self.driver, (By.CLASS_NAME, 'payMent'), wait_seconds=3)
+                    self.driver, (By.CLASS_NAME, 'payMent'), wait_seconds=5)
                 if check_element_exist(self.driver, By.CLASS_NAME, 'payMent'):
                     self.court_locked = True
                     break
