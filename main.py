@@ -31,7 +31,6 @@ def task(config_name:str, browser_name:str, process_id=None):
 
 if __name__ == '__main__':
     browser = "chrome"
-    # TODO: 给配置文件设置是否启用的选项
     lst_conf = env_check()
     print("本次使用的config文件:" + str(lst_conf))
     # multi_run(lst_conf, browser)

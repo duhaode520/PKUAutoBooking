@@ -57,18 +57,8 @@ class Booker:
         self.wechat_notice = conf.getboolean('wechat', 'wechat_notice')
         self.sckey = conf['wechat']['SCKEY']
     
-    def book(self) -> None:
+    def page_init(self) -> None:
         self.status = True
-        start_time_list, end_time_list, delta_day_list = self.__judge_exceeds_days_limit(
-            self.start_time, self.end_time)
-
-        # 如果没有有效的预约日期, 则退出
-        if len(start_time_list) == 0:
-            self.logger.warn("没有可用的预约日期, 一分钟后重试")
-            self.status = False
-            time.sleep(60)
-            return
-
         # 初始化浏览器
         self.__driver_init()
 
@@ -77,11 +67,24 @@ class Booker:
 
         # 进入预约界面
         self.__go_to_venue_page()
+        
+    def book(self) -> None:
+        self.start_time_list, self.end_time_list, self.delta_day_list = self.__judge_exceeds_days_limit(
+            self.start_time, self.end_time)
+
+        # 如果没有有效的预约日期, 则退出
+        if len(self.start_time_list) == 0:
+            self.logger.warn("没有可用的预约日期, 一分钟后重试")
+            self.status = False
+            time.sleep(60)
+            return
+        else:
+            self.status = True
 
         # 从这里直到付款，任意一次刷新都会回到查找空闲场地
         # 查找空闲场地
         self.__find_available_court(
-            start_time_list, end_time_list, delta_day_list)
+            self.start_time_list, self.end_time_list, self.delta_day_list)
 
         # 确认预约
         self.__confirm_booking()
@@ -104,8 +107,20 @@ class Booker:
             if self.wechat_notice:
                 wechat_push(self.sckey, '预定成功', '锁定的场地已成功自动付款', self.logger)
 
+    def single_run(self) -> None:
+        self.page_init()
+        self.book()
+
     def keep_run(self):
         retry_times = 0
+        self.page_init()
+        while not self.status:
+            retry_times += 1
+            self.logger.info("第 %d 次登陆重试" % retry_times)
+            self.page_init()
+
+        retry_times = 0
+        
         while not self.court_locked:
             retry_times += 1
             try:
@@ -339,7 +354,6 @@ class Booker:
         self.logger.info("门户登录成功")
 
     @stage(stage_name="进入预约界面")
-    @retry(max_retry=3)
     def __go_to_venue_page(self, max_retry: int = 3) -> None:
         self.logger.info("进入预约界面...")
 
@@ -712,6 +726,6 @@ class Booker:
 
 if __name__ == "__main__":
     # test
-    booker = Booker(config_path="config0.ini", logger=setup_logger(
-        'config0.ini'), browser_name="chrome")
-    booker.book()
+    booker = Booker(config_path="config_test.ini", logger=setup_logger(
+        'config_test.ini'), browser_name="chrome")
+    booker.single_run()

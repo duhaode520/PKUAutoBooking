@@ -29,7 +29,7 @@ def env_check():
 
 def is_config_enabled(config_name:str) -> bool:
     parser = ConfigParser()
-    parser.read(config_name)
+    parser.read(config_name, encoding='utf-8')
     is_enabled = parser.getboolean('enabled', 'enabled')
     return is_enabled
 
