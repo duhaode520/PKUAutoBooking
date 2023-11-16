@@ -41,7 +41,7 @@ PKU智慧场馆自动预约的改良版 fork from: https://github.com/lyqqqqqqqq
 采用如下命令安装 `selenium`，支持 2.48.0 及以上版本：
 
 ```python
-pip3 install selenium==2.48.0
+pip install selenium
 ```
 
 ## 基本用法
@@ -49,11 +49,15 @@ pip3 install selenium==2.48.0
 1. 将 `config.sample.ini` 文件重命名为 `config0.ini` ，如果需要多个账号预约，或者需要时间上的“与”关系，请设置多个.ini文件（最多为两位数），
    请不要新建文件，不然自己搞定编码问题
 
-2. 用文本编辑器（建议代码编辑器）打开 `config0.ini` 文件
+2. 将 `driver` 文件夹下的driver替换为你自己的浏览器对应版本的driver。
 
-3. 配置 `[login]` 、`[tt]`、`[type]` 、`[time]`、`[wechat_notice]` 这几个 Section 下的变量，在 `config0.ini.sample` 文件内有详细注释
+3. 用文本编辑器（建议代码编辑器）打开 `config0.ini` 文件
 
-4. [tt识图](http://www.ttshitu.com/)需要提前注册，每一次识别需要1分钱，大概充1块就可以使用很久了。
+4. 配置 `[login]` 、`[tt]`、`[browser_type]`、`[type]` 、`[time]`、`[wechat_notice]` 这几个 Section 下的变量，在 `config0.ini.sample` 文件内有详细注释
+
+5. [tt识图](http://www.ttshitu.com/)需要提前注册，每一次识别需要1分钱，大概充1块就可以使用很久了。
+
+6. 使用时，首先在main.py里修改自己使用的browser。
 
 ## 定时运行
 
@@ -98,3 +102,13 @@ pip3 install selenium==2.48.0
 - 用装饰器函数封装了状态判断和错误捕捉的部分，简化了代码逻辑
 - 使用 logger 进行控制台和文本的 log 输出，这样在 crash 时也可以拿到输出结果
 - 优化了大部分浏览器元素的查找逻辑，尽量不使用可读性较差的 Xpath 进行查找
+
+### 修改 by Mark
+- 优化了等待时间的判断逻辑
+- 修正了高版本 selenium 参数名称改变导致程序报错的问题，但我不确定这么改过后对于低版本的selenium是否还适用，实在不行自己配个虚拟环境吧……
+- 将浏览器类型写入配置文件中
+- 优化了超过3天时间的判断逻辑
+- 多个时间段同时预约时，成功预约其中一个后，继续预约剩余时间段，而非终止程序
+
+### 待修改 by Mark
+- 似乎预约连续两小时是通过每次预约一个小时实现的？要再研究下。

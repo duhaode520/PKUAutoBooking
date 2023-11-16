@@ -3,6 +3,7 @@ import os
 import datetime
 import time
 
+
 def setup_logger(config_path:str, process_id:int = None) -> logging.Logger:
     # 设置logger的name
     config_name = config_path.split('.')[0]
@@ -46,6 +47,7 @@ def setup_logger(config_path:str, process_id:int = None) -> logging.Logger:
     logger.info("Created at " + str(datetime.datetime.now()))
 
     return logger
+
 
 if __name__ == "__main__":
     logger = setup_logger("test.ini")

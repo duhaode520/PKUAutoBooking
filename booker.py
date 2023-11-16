@@ -11,6 +11,7 @@ import datetime
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as Chrome_Options
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.edge.options import Options as Edge_Options
 from selenium.webdriver.firefox.options import Options as Firefox_Options
 from selenium.webdriver.support.ui import WebDriverWait
@@ -18,19 +19,18 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 
-
 from utils import verify, get_size, check_element_exist, wait_loading_complete
 from log import setup_logger
 from notice import wechat_push
+
 warnings.filterwarnings('ignore')
 
 
 class Booker:
 
-    def __init__(self, config_path: str, logger: logging.Logger, browser_name: str) -> None:
+    def __init__(self, config_path: str, logger: logging.Logger) -> None:
         self.config_path = config_path
         self.logger = logger
-        self.browser_name = browser_name
 
         # 爬虫状态
         self.status = True
@@ -44,12 +44,16 @@ class Booker:
         # 预约场地的时间列表
         self.venue_time_list = []
 
+        # 11:55 的时间戳
+        self.time_11_55 = datetime.datetime.strptime("11:55:00", "%H:%M:%S")
+
     def __load_config(self, config_path: str) -> None:
         conf = ConfigParser()
         conf.read(config_path, encoding='utf8')
 
         self.user_name = conf['login']['user_name']
         self.password = conf['login']['password']
+        self.browser_name = conf['browser']['browser_type']
         self.tt_usr = conf['tt']['tt_usr']
         self.tt_pwd = conf['tt']['tt_pwd']
         self.venue = conf['type']['venue']
@@ -60,50 +64,61 @@ class Booker:
         self.sckey = conf['wechat']['SCKEY']
 
     def book(self) -> None:
+        def book_one_time(start_time_list, end_time_list, delta_day_list):
+            # 初始化浏览器
+            self.__driver_init()
+
+            # 登录
+            self.__login()
+
+            # 进入预约界面
+            self.__go_to_venue_page()
+
+            # 查找空闲场地
+            is_find, k = self.__find_available_court(start_time_list, end_time_list, delta_day_list)
+
+            # 确认预约
+            self.__confirm_booking()
+
+            # 提交订单
+            self.__submit_order()
+
+            # 完成验证码
+            self.__complete_captcha()
+
+            # 微信推送
+            if self.wechat_notice and self.status:
+                self.__push_court_locking_info()
+
+            # 付款
+            self.__pay()
+
+            if self.status:
+                self.logger.info("预约成功")
+                if self.wechat_notice:
+                    wechat_push(self.sckey, '预定成功', '锁定的场地已成功自动付款', self.logger)
+
+            return is_find, k
+
         self.status = True
         start_time_list, end_time_list, delta_day_list = self.__judge_exceeds_days_limit(
             self.start_time, self.end_time)
 
         # 如果没有有效的预约日期, 则退出
-        if len(start_time_list) == 0:
-            self.logger.warn("没有可用的预约日期, 一分钟后重试")
+        if len(start_time_list) == 0 or ():
+            self.logger.warning("没有可用的预约日期, 一分钟后重试")
             self.status = False
             time.sleep(60)
             return
 
-        # 初始化浏览器
-        self.__driver_init()
+        while len(start_time_list) != 0:
+            is_find, k = book_one_time(start_time_list, end_time_list, delta_day_list)
+            if is_find:
+                start_time_list.pop(k)
+                end_time_list.pop(k)
+                delta_day_list.pop(k)  # 如果预订成功了，就把对应的时间去除，然后继续预订，直到所有时间都预订成功
 
-        # 登录
-        self.__login()
-
-        # 进入预约界面
-        self.__go_to_venue_page()
-
-        # 查找空闲场地
-        self.__find_available_court(
-            start_time_list, end_time_list, delta_day_list)
-
-        # 确认预约
-        self.__confirm_booking()
-
-        # 提交订单
-        self.__submit_order()
-
-        # 完成验证码
-        self.__complete_captcha()
-
-        # 微信推送
-        if self.wechat_notice and self.status:
-            self.__push_court_locking_info()
-
-        # 付款
-        self.__pay()
-
-        if self.status:
-            self.logger.info("预约成功")
-            if self.wechat_notice:
-                wechat_push(self.sckey, '预定成功', '锁定的场地已成功自动付款', self.logger)
+        return
 
     def keep_run(self):
         retry_times = 0
@@ -114,10 +129,10 @@ class Booker:
             except Exception as e:
                 self.logger.error(e)
                 self.logger.debug(e, exc_info=True, stack_info=True)
-                self.logger.info("第 %d 次预约尝试失败" % retry_times + 1)
-            
+                self.logger.info("第 %d 次预约尝试失败" % retry_times)
+
         if self.court_locked and (not self.status):
-            self.logger.warn("场地已锁定，但是预约付款失败")
+            self.logger.warning("场地已锁定，但是预约付款失败")
 
     def __judge_exceeds_days_limit(self, start_time: str, end_time: str) -> tuple:
         """判断预约日期是否超过3天
@@ -143,16 +158,9 @@ class Booker:
         self.logger.info("start_time_list: %s" % start_time_list)
         self.logger.info("end_time_list: %s" % end_time_list)
 
-        # 获取当前时间
+        # 获取当前时间和日期
         now = datetime.datetime.today()
         today = datetime.datetime.strptime(str(now)[:10], "%Y-%m-%d")
-
-        # 当前时间的小时
-        time_hour = datetime.datetime.strptime(
-            str(now).split()[1][:-7], "%H:%M:%S")
-        # 11:55 的时间戳
-        time_11_55 = datetime.datetime.strptime(
-            "11:55:00", "%H:%M:%S")
 
         start_time_list_valid = []
         end_time_list_valid = []
@@ -166,15 +174,17 @@ class Booker:
                 # 支持 20230909-1500 这种格式
                 date = datetime.datetime.strptime(
                     start_time.split('-')[0], "%Y%m%d")
-                delta_day = (date-today).days
+                delta_day = (date - today).days
             else:
                 # 正常情况下是 5-1500 这种格式
-                delta_day = (int(start_time[0])+6-today.weekday()) % 7
-                date = today+datetime.timedelta(days=delta_day)
+                delta_day = (int(start_time[0]) + 6 - today.weekday()) % 7
+                date = today + datetime.timedelta(days=delta_day)
 
-            if delta_day > 3 or (delta_day == 3 and (time_hour < time_11_55)):
-                self.logger.warn("预定日期: %s 无效" % str(date).split()[0])
-                self.logger.warn("只能在当天中午11:55后预约未来3天以内的场馆")
+            # 当前时间的小时
+            time_hour = datetime.datetime.strptime(str(now).split()[1][:-7], "%H:%M:%S")
+            if delta_day > 3 or (delta_day == 3 and (time_hour < self.time_11_55)):
+                self.logger.warning("预定日期: %s 无效" % str(date).split()[0])
+                self.logger.warning("只能在当天中午11:55后预约未来3天以内的场馆")
                 break
             else:
                 start_time_list_valid.append(start_time)
@@ -224,25 +234,25 @@ class Booker:
             chrome_options.add_argument('-ignore -ssl-errors')
             self.driver = webdriver.Chrome(
                 options=chrome_options,
-                executable_path=get_driver_path(browser="chrome"))
-
-            self.logger.info('Chrome launched\n')
+                service=Service(executable_path=get_driver_path(browser="chrome")))
+            self.logger.info('Chrome launched')
         elif self.browser_name == "firefox":
             firefox_options = Firefox_Options()
             firefox_options.add_argument("--headless")
             self.driver = webdriver.Firefox(
                 options=firefox_options,
-                executable_path=get_driver_path(browser="firefox"))
-            self.logger.info('Firefox launched\n')
+                service=Service(executable_path=get_driver_path(browser="firefox")))
+            self.logger.info('Firefox launched')
         elif self.browser_name == 'edge':
             edge_options = Edge_Options()
             edge_options.add_argument("--headless")
             self.driver = webdriver.Edge(
-                executable_path=get_driver_path(browser="edge"))
-            self.logger.info('Edge launched\n')
+                service=Service(executable_path=get_driver_path(browser="edge")))
+            self.logger.info('Edge launched')
         else:
             raise Exception("不支持此类浏览器")
 
+    @staticmethod
     def stage(stage_name):
         def decorate(func):
             @wraps(func)
@@ -251,14 +261,21 @@ class Booker:
                     return
                 try:
                     self.logger.info("开始执行 %s" % stage_name)
-                    func(self, *args, **kwargs)
-                    self.logger.info("执行 %s 完成" % stage_name)
+                    if stage_name == '查找空闲场地':
+                        is_find, k = func(self, *args, **kwargs)
+                        self.logger.info("执行 %s 完成" % stage_name)
+                        return is_find, k
+                    else:
+                        func(self, *args, **kwargs)
+                        self.logger.info("执行 %s 完成" % stage_name)
                 except Exception as e:
                     self.logger.error("执行 %s 失败" % stage_name)
                     self.logger.error(e)
                     self.logger.debug(e, exc_info=True, stack_info=True)
                     self.status = False
+
             return wrapper
+
         return decorate
 
     @stage(stage_name="登录")
@@ -305,16 +322,17 @@ class Booker:
                 # 疫情防控期间的弹窗逻辑，现在好像没有这个了，或许 deprecated
                 if check_element_exist(self.driver, By.XPATH, '/html/body/div[1]/div[5]/div/div/div[1]/div/div/table'):
                     # 这里随便点一下消除弹窗
-                    ActionChains(self.driver)\
-                        .move_to_element(self.driver.find_element(By.XPATH, "/html/body/div[1]/header/section/section[2]/section[1]"))\
-                        .click()\
+                    ActionChains(self.driver) \
+                        .move_to_element(
+                        self.driver.find_element(By.XPATH, "/html/body/div[1]/header/section/section[2]/section[1]")) \
+                        .click() \
                         .perform()
 
                 time.sleep(0.2)
                 self.logger.info("门户登录成功")
                 break
             except Exception as e:
-                self.logger.info(f'Retrying {i+1} / {max_retry}.')
+                self.logger.info(f'Retrying {i + 1} / {max_retry}.')
                 self.logger.debug(e)
                 self.logger.debug(e, exc_info=True, stack_info=True)
 
@@ -363,12 +381,12 @@ class Booker:
                 # TODO: 这里要加一个判断有没有载入成功的逻辑
                 break
             except Exception as e:
-                self.logger.info(f'Retrying {i+1} / {max_retry}.')
+                self.logger.info(f'Retrying {i + 1} / {max_retry}.')
                 self.logger.debug(e)
                 self.logger.debug(e, exc_info=True, stack_info=True)
 
     @stage(stage_name="查找空闲场地")
-    def __find_available_court(self, start_time_list: list, end_time_list: list, delta_day_list: list) -> None:
+    def __find_available_court(self, start_time_list: list, end_time_list: list, delta_day_list: list):
         """自旋查找空闲场地
 
         Args:
@@ -381,15 +399,15 @@ class Booker:
         while not is_find:
             times += 1
             self.logger.info("查找空闲场地, 第 %d 次尝试" % times)
-            is_find = self.__find_available_court_single(
+            is_find, k = self.__find_available_court_single(
                 start_time_list, end_time_list, delta_day_list)
             time.sleep(2 + random.random())  # 防止封号
+        return is_find, k
 
-    def __find_available_court_single(self, start_time_list: list, end_time_list: list, delta_day_list: list) -> bool:
+    def __find_available_court_single(self, start_time_list: list, end_time_list: list, delta_day_list: list):
         """ 完成单趟的查找空闲场地 """
         self.driver.switch_to.window(self.driver.window_handles[-1])
         wait_loading_complete(self.driver)
-
         is_find = False
         for k in range(len(start_time_list)):
             self.driver.refresh()
@@ -397,8 +415,10 @@ class Booker:
             start_time = start_time_list[k]
             end_time = end_time_list[k]
             delta_day = delta_day_list[k]
-            # 若接近但是没到12点，停留在此页面
-            if delta_day == 3:
+            # 若当天时间没到11点55，停留在此页面，这里加了一个判断语句
+            now = datetime.datetime.today()
+            time_hour = datetime.datetime.strptime(str(now).split()[1][:-7], "%H:%M:%S")
+            if delta_day == 3 and (time_hour < self.time_11_55):
                 self.__spin_wait_until_12()
 
             # 移动到对应的日期
@@ -437,7 +457,7 @@ class Booker:
                 break
             else:
                 self.logger.info("未找到空闲场地")
-        return is_find
+        return is_find, k
 
     def __spin_wait_until_12(self) -> None:
         """循环等待到12点 """
@@ -462,7 +482,8 @@ class Booker:
             btn[1].click()
             time.sleep(0.1)
 
-    def __click_available_court(self, start_time: datetime.datetime, end_time: datetime.datetime, delta_day: int, table_num: int) -> bool:
+    def __click_available_court(self, start_time: datetime.datetime, end_time: datetime.datetime, delta_day: int,
+                                table_num: int) -> bool:
         """点击空闲场地
 
         Args:
@@ -478,7 +499,8 @@ class Booker:
             bool: 是否找到空闲场地
         """
 
-        def judge_in_time_range(start_time: datetime.datetime, end_time: datetime.datetime, venue_time_range: str) -> bool:
+        def judge_in_time_range(start_time: datetime.datetime, end_time: datetime.datetime,
+                                venue_time_range: str) -> bool:
             vt = venue_time_range.split('-')
             vt_start_time = datetime.datetime.strptime(vt[0], "%H:%M")
             vt_end_time = datetime.datetime.strptime(vt[1], "%H:%M")
@@ -538,8 +560,10 @@ class Booker:
                 if is_available:
                     self.venue_num = col_index + has_checked_num  # 更新场地号
                     break
+
         if is_available:
             for i in range(len(valid_rows_list)):
+                # 这里会报错，local variable 'col_index' referenced before assignment，待debug
                 cell = valid_rows_list[i][col_index].find_element(
                     By.TAG_NAME, 'div')
                 if 'free' in cell.get_attribute('class').split():
@@ -564,7 +588,7 @@ class Booker:
             if no_table_count > 10:
                 self.driver.refresh()
                 no_table_count = 0
-                self.move_to_date(delta_day)
+                self.__move_to_date(delta_day)
         return rows
 
     @stage(stage_name="确认预约")
@@ -601,7 +625,7 @@ class Booker:
         for i in range(max_retry):
             # 得到验证图片的base64
             base_img_element = self.driver.find_element(
-                By.CLASS_NAME, 'verify-img-out').find_element(By.TAG_NAME, 'img')
+                By.CLASS_NAME, 'verify-img-out').find_element(By.TAG_NAME, 'img')  # 这里的问题是每次设置两小时时间段都没法找到元素，只抢得到一小时的
             base_img = base_img_element.get_attribute(
                 'src').replace('data:image/png;base64,', '')
             # 计算图片的缩放情况
@@ -613,7 +637,7 @@ class Booker:
             verify_msg_element = self.driver.find_element(
                 By.CLASS_NAME, 'verify-msg')
             verify_msg = verify_msg_element.text.replace(',', '')
-            content = verify_msg[verify_msg.find('【')+1:verify_msg.find('】')]
+            content = verify_msg[verify_msg.find('【') + 1:verify_msg.find('】')]
 
             try:
                 points = verify(base_img, content, self.tt_usr, self.tt_pwd)
@@ -621,10 +645,10 @@ class Booker:
                 for point in points:
                     # 这里需要先移入中心，再移入左上角，再移入目标点，不然会出现偏移
                     action.move_to_element(base_img_element).move_by_offset(
-                        -base_img_element.size['width']/2, -
-                        base_img_element.size['height']/2
+                        -base_img_element.size['width'] / 2, -
+                        base_img_element.size['height'] / 2
                     ).move_by_offset(
-                        point[0]*scale[0], point[1]*scale[1]).click().perform()
+                        point[0] * scale[0], point[1] * scale[1]).click().perform()
                 wait_loading_complete(
                     self.driver, (By.CLASS_NAME, 'payMent'), wait_seconds=3)
                 if check_element_exist(self.driver, By.CLASS_NAME, 'payMent'):
@@ -634,7 +658,7 @@ class Booker:
                 if i == max_retry - 1:
                     # 达到最大重试次数，抛出异常
                     raise e
-                self.logger.error(f"验证码识别失败, 准备第 {i+1} 次重试")
+                self.logger.error(f"验证码识别失败, 准备第 {i + 1} 次重试")
                 self.logger.debug(e, exc_info=True, stack_info=True)
 
     @stage(stage_name="付款")
@@ -674,6 +698,5 @@ class Booker:
 
 if __name__ == "__main__":
     # test
-    booker = Booker(config_path="config0.ini", logger=setup_logger(
-        'config0.ini'), browser_name="chrome")
+    booker = Booker(config_path="config0.ini", logger=setup_logger('config0.ini'))
     booker.book()
