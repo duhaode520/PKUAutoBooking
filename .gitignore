@@ -1,5 +1,4 @@
-config?.ini
-config??.ini
+config*[_0-9a-zA-Z].ini
 __pycache__
 *.log
 run*.bat

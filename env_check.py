@@ -6,6 +6,7 @@ from selenium import webdriver
 from bs4 import BeautifulSoup
 from webdriver_manager.chrome import ChromeDriverManager, DriverCacheManager
 import shutil
+from configparser import ConfigParser
 
 def env_check():
     try:
@@ -14,11 +15,10 @@ def env_check():
         raise ImportError(
             '没有找到selenium包，请用pip安装一下吧～ pip3 install --user selenium')
 
-    lst_conf = sorted([
+    lst_conf = [
         fileName for fileName in os.listdir()
-        if re.match(r'^config[0-9][0-9]*\.ini$', fileName)
-    ],
-        key=lambda x: int(re.findall(r'[0-9]+', x)[0]))
+        if re.match(r'^config[_0-9a-zA-Z]*.ini$', fileName) and is_config_enabled(fileName)
+    ]
 
     if len(lst_conf) == 0:
         raise ValueError('请先在config.sample.ini文件中填入个人信息，并将它改名为config.ini')
@@ -27,7 +27,14 @@ def env_check():
 
     return lst_conf
 
+def is_config_enabled(config_name:str) -> bool:
+    parser = ConfigParser()
+    parser.read(config_name)
+    is_enabled = parser.getboolean('enabled', 'enabled')
+    return is_enabled
+
 def check_browser_driver(browser):
+    # 目前支持了chrome
     if (browser == 'chrome'):
         __check_chrome_driver()
 
@@ -84,4 +91,5 @@ def __update_chrome_webdriver(driver_version:str, driver_path:str):
     
     
 if __name__ == '__main__':
-    check_browser_driver('chrome')
+    # check_browser_driver('chrome')
+    lst_conf = env_check()

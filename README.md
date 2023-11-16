@@ -18,7 +18,7 @@ PKU智慧场馆自动预约的改良版 fork from: https://github.com/lyqqqqqqqq
 - 第三方依赖包几乎只有 `selenium` 一个
 - 由于我只测试过羽毛球场的预约，其他场馆只是理论上可行，如果出现任何问题，可以提issue
 - 支持时间上的“或”关系，支持按照星期几设定时间，“或”是有先后处理的顺序的，排在前面的先处理
-- 时间上的“与”关系可通过设置多份`config[0-9][0-9].ini`文件实现——新版本暂不支持
+- 时间上的“与”关系可通过设置多份`config*.ini`文件实现, *可以为数字、大小写字母和下划线——新版本暂不支持
 - `config`参数填写`config.ini`文件的名称，类型为字符串
 - `lst_config`为config文件名称字符串构成的列表
 - `Booker` 类单独处理每个`config.ini`文件,`muilti_run(lst_config)`并行处理`lst_config`列表中的所有`config.ini`，`sequence_run(lst_config)`按序处理
@@ -96,6 +96,12 @@ pip install selenium
 
 ## 修改记录
 
+### v3.0.1
+- 增加了config的支持
+  - config 支持更多样的命名形式
+  - config 中现在有一个参数来确认这个config有没有被启用
+- 忽略了 selenium 的控制台警告，控制台日志会更清爽
+- 修复了部分已知的bug
 ### v3.0.0
 
 - 重构了主要的预定代码，现在全部的预定代码都封装在了 `Booker` 类中
