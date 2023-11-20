@@ -24,6 +24,7 @@ def sequence_run(lst_conf, browser="chrome"):
 
 
 def task(config_name:str, browser_name:str, process_id=None):
+    # check_browser_driver(browser_name)
     logger = setup_logger(config_name, process_id)
     booker = Booker(config_name, logger, browser_name)
     booker.keep_run()

@@ -5,6 +5,7 @@ import re
 from selenium import webdriver
 from bs4 import BeautifulSoup
 from webdriver_manager.chrome import ChromeDriverManager, DriverCacheManager
+from selenium.webdriver.chrome.service import Service as Chrome_Service
 import shutil
 from configparser import ConfigParser
 
@@ -41,10 +42,12 @@ def check_browser_driver(browser):
 def __check_chrome_driver():
     chrome_options = webdriver.ChromeOptions()
     chrome_options.add_argument('--headless')
+
+    chrome_service = Chrome_Service(executable_path='driver/chromedriver.exe')
     driver = None
     while not driver:
         try:
-            driver = webdriver.Chrome(chrome_options=chrome_options, executable_path= 'driver/chromedriver.exe')
+            driver = webdriver.Chrome(options=chrome_options, service=chrome_service)
         except Exception as e: 
             old_version, cnt_version = __get_driver_version_from_exception(e)
             print("Detected that the current driver version and browser version are not compatible, preparing to download a new driver version.") 
@@ -52,18 +55,16 @@ def __check_chrome_driver():
             print(f"Current chrome browser version: {cnt_version}")  
             __update_chrome_webdriver(cnt_version, 'driver/test.exe')
 
-    driver.get('chrome://version/')
-    soup = BeautifulSoup(driver.page_source, 'html.parser')
+    # Use JavaScript to get the version of Chrome
+    chrome_version = driver.execute_script("return navigator.userAgent")
+    # get major version from user agent
+    chrome_major_version = re.search(r'Chrome/(\d+)\.', chrome_version).group(1)
+    print('chrome_major_version: ', chrome_major_version)
+
+    # get chromedriver version
+    print('chromedriver_version: ', driver.capabilities['chrome']['chromedriverVersion'].split(' ')[0])
+
     driver.quit()
-
-    # get chrome version
-    chrome_version = soup.find('td', {'id': 'version'}).text
-    chrome_major_version = chrome_version.split('.')[0]
-    print('chrome_version: ', chrome_major_version)
-
-    chromedriver_path = 'chromedriver.exe'
-    chromedriver_version = webdriver.__version__.split('.')[0]
-    print('chromedriver_version: ', ChromeDriverManager().version)
 
 def __get_driver_version_from_exception(e:Exception) -> (str,str):
     error_message = e.args[0]
@@ -91,5 +92,5 @@ def __update_chrome_webdriver(driver_version:str, driver_path:str):
     
     
 if __name__ == '__main__':
-    # check_browser_driver('chrome')
+    check_browser_driver('chrome')
     lst_conf = env_check()
