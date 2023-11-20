@@ -10,8 +10,11 @@ import datetime
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as Chrome_Options
+from selenium.webdriver.chrome.service import Service as Chrome_Service
 from selenium.webdriver.edge.options import Options as Edge_Options
+from selenium.webdriver.edge.service import Service as Edge_Service
 from selenium.webdriver.firefox.options import Options as Firefox_Options
+from selenium.webdriver.firefox.service import Service as Firefox_Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support import expected_conditions as EC
@@ -239,23 +242,30 @@ class Booker:
             # 忽略selenium自带的报警日志，让日志变得清爽
             # 如:[1017/143755.402:INFO:CONSOLE(84)] "pascalprecht.translate.$translateSanitization: No sanitization strategy has been configured. This can have serious security implications. See http://angular-translate.github.io/docs/#/guide/19_security for details.", source: https://portal.pku.edu.cn/portal2017/js/angular.min.js (84)
             chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
+
+            chrome_service = Chrome_Service(executable_path=get_driver_path(browser="chrome")) 
             self.driver = webdriver.Chrome(
                 options=chrome_options,
-                executable_path=get_driver_path(browser="chrome"))
+                service=chrome_service)
 
             self.logger.info('Chrome launched\n')
         elif self.browser_name == "firefox":
             firefox_options = Firefox_Options()
             firefox_options.add_argument("--headless")
+
+            firefox_service = Firefox_Service(executable_path=get_driver_path(browser="firefox")) 
             self.driver = webdriver.Firefox(
                 options=firefox_options,
-                executable_path=get_driver_path(browser="firefox"))
+                service=firefox_service)
             self.logger.info('Firefox launched\n')
         elif self.browser_name == 'edge':
             edge_options = Edge_Options()
             edge_options.add_argument("--headless")
+
+            edge_service = Edge_Service(executable_path=get_driver_path(browser="edge"))
             self.driver = webdriver.Edge(
-                executable_path=get_driver_path(browser="edge"))
+                options=edge_options,
+                service=edge_service)
             self.logger.info('Edge launched\n')
         else:
             raise Exception("不支持此类浏览器")
