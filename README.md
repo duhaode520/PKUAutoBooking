@@ -92,6 +92,11 @@ pip3 install selenium==4.10.0
 
 ## 修改记录
 
+### v3.0.2
+- 重写了一些重试的逻辑，减少了高峰期的重试代价
+- selenium 版本支持了4.10+
+- 加入了对于 webdriver 的自动检查（目前支持 chrome）
+
 ### v3.0.1
 - 增加了config的支持
   - config 支持更多样的命名形式
