@@ -572,11 +572,13 @@ class Booker:
         self.logger.debug("当前表格中场地号: %s" %
                           [x + has_checked_num for x in col_index_list])
 
+        col_index = None
         if self.venue_num != -1:
             # 如果指定了场地号，就只检查指定的场地号
             if self.venue_num - has_checked_num in col_index_list:
+                col_index = self.venue_num - has_checked_num
                 is_available = check_if_court_available(
-                    valid_rows_list, self.venue_num - has_checked_num)
+                    valid_rows_list, col_index)
             else:
                 return False
         else:
