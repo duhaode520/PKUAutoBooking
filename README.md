@@ -38,10 +38,10 @@ PKU智慧场馆自动预约的改良版 fork from: https://github.com/lyqqqqqqqq
 
 #### selenium
 
-采用如下命令安装 `selenium`，支持 2.48.0 及以上版本：
+采用如下命令安装 `selenium`，支持 4.10.0 及以上版本：
 
 ```python
-pip3 install selenium==2.48.0
+pip3 install selenium==4.10.0
 ```
 
 ## 基本用法
