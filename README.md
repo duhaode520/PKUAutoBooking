@@ -8,6 +8,8 @@ PKU智慧场馆自动预约的改良版 fork from: https://github.com/lyqqqqqqqq
 
 同时还改变了一下访问iaaa的逻辑增强鲁棒性，避免可能的验证码弹窗
 
+**请自行负责可能面临的封号风险**
+
 
 ## 说明
 
